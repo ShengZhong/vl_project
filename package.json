@@ -1,0 +1,27 @@
+{
+  "name": "vl-product-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VisionLine 产品原型项目 - 基于 Umi + React + Ant Design v4",
+  "scripts": {
+    "build": "umi build",
+    "dev": "umi dev",
+    "start": "umi dev",
+    "postinstall": "umi generate tmp"
+  },
+  "dependencies": {
+    "umi": "^3.5.41",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "antd": "^4.24.16",
+    "@ant-design/icons": "^4.8.0",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "@umijs/preset-react": "^1.8.31",
+    "@umijs/test": "^3.5.41",
+    "@umijs/yorkie": "^2.0.5",
+    "typescript": "^4.9.5"
+  }
+}
+
