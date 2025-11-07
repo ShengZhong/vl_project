@@ -98,6 +98,24 @@ fix(AD-ACC-002): 修复充值流程中的表单验证问题
 style(AD-MAT-001): 优化素材列表页面布局
 ```
 
+### 远程仓库操作
+
+项目已配置 GitHub 远程仓库：`https://github.com/ShengZhong/vl_project.git`
+
+**常用操作**：
+
+- **查看仓库**：访问 https://github.com/ShengZhong/vl_project
+- **推送代码**：使用 `git push` 将本地提交推送到远程仓库
+- **拉取更新**：使用 `git pull` 获取远程仓库的最新更改
+- **查看远程状态**：使用 `git remote -v` 查看远程仓库配置
+- **首次推送**：使用 `git push -u origin main` 设置上游分支并推送
+
+**注意事项**：
+
+- 推送前确保已提交所有更改（`git add` 和 `git commit`）
+- 推送前建议先拉取远程更新（`git pull`）避免冲突
+- 遵循提交信息规范，确保每次提交都有明确的功能点 ID 和描述
+
 ## 6. AI 辅助生成规范
 
 ### 生成前端原型代码时
