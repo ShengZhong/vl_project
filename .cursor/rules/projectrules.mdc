@@ -46,12 +46,15 @@ project_root/
 │   ├── README.md                  # 文档索引
 │   ├── prd/                       # PRD 文档目录
 │   │   ├── README.md              # PRD 索引
-│   │   └── PRD_{功能名称}.md      # 具体 PRD
-│   └── user-manual/               # 用户手册目录
-│       ├── README.md              # 手册索引
-│       └── user_manual_{功能名称}.md
+│   │   └── PRD_{功能名称}.md       # 具体 PRD
+│   ├── user-manual/               # 用户手册目录
+│   │   ├── README.md              # 手册索引
+│   │   └── user_manual_{功能名称}.md
+│   └── summary/                   # 项目总结
+│       ├── README.md              # 总结索引
+│       └── {功能名称}_{功能点ID}_summary.md # 具体 项目总结文档
 ├── src/                           # 前端原型代码
-│   ├── pages/{模块名}/            # 页面组件
+│   ├── pages/{模块名}/             # 页面组件
 │   ├── components/                # 公共组件
 │   ├── services/                  # API 服务层
 │   ├── types/                     # TypeScript 类型
@@ -185,7 +188,7 @@ style(AD-MAT-001): 优化素材列表页面布局
 ```
 创建新功能：[功能名称]
 
-功能点 ID: [自动生成或手动指定，如 AD-ACC-001]
+功能点ID: [自动生成或手动指定，如 AD-ACC-001]
 所属模块: [媒介服务/投放服务/其他]
 功能背景: [为什么需要这个功能，解决什么问题]
 用户角色: [运营人员/广告主/管理员]

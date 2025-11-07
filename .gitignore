@@ -13,6 +13,7 @@
 /.umi
 /.umi-production
 /.umi-test
+src/.umi
 
 # IDE
 /.vscode
