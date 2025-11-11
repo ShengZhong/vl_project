@@ -8,7 +8,8 @@
 docs/
 ├── README.md          # 本文件，文档索引
 ├── prd/               # PRD 产品需求文档目录
-└── user-manual/       # 用户操作手册目录
+├── user-manual/       # 用户操作手册目录
+└── summary/           # 项目总结文档目录
 ```
 
 ## 📋 PRD 文档
@@ -22,6 +23,12 @@ PRD（Product Requirements Document）产品需求文档定义了产品功能的
 用户操作手册提供了面向最终用户的功能使用说明，包括操作步骤、截图和常见问题解答。
 
 查看所有用户手册：[user-manual/README.md](./user-manual/README.md)
+
+## 📝 项目总结
+
+项目总结文档记录了功能实现过程和项目整体情况，包括功能实现总结、菜单结构总结、项目运行状态等。
+
+查看所有总结文档：[summary/README.md](./summary/README.md)
 
 ## 🎯 文档规范
 

@@ -178,7 +178,7 @@
 4. `src/services/profile.ts` - API 服务层
 5. `src/pages/user/profile/ProfileModal.tsx` - 个人信息弹框
 6. `src/pages/user/profile/PasswordModal.tsx` - 修改密码弹框
-7. `FEATURE_VL-USR-002_SUMMARY.md` - 功能总结(本文件)
+7. `docs/summary/个人信息管理_VL-USR-002_summary.md` - 功能总结(本文件)
 
 ### 修改文件 (2个)
 
@@ -456,6 +456,4 @@ git commit -m "docs(VL-USR-002): 新增个人信息管理用户手册"
 **创建日期**: 2025-01-15  
 **功能点 ID**: VL-USR-002  
 **状态**: ✅ 已完成
-
-
 

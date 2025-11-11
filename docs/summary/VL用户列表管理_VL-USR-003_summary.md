@@ -258,7 +258,7 @@ http://localhost:8000/vluser/list
 ## 📚 相关文档
 
 - **PRD 文档**: `docs/prd/PRD_VL用户列表管理.md`
-- **功能总结**: `FEATURE_VL-USR-003_SUMMARY.md`(本文件)
+- **功能总结**: `docs/summary/VL用户列表管理_VL-USR-003_summary.md`(本文件)
 
 ---
 
