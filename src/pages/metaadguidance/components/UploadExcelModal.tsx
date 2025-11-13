@@ -289,19 +289,18 @@ const UploadExcelModal: React.FC<UploadExcelModalProps> = ({
       bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
     >
       <div style={{ marginBottom: 16 }}>
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Upload {...uploadProps}>
+            <Button icon={<UploadOutlined />}>选择文件</Button>
+          </Upload>
           <Button
             icon={<DownloadOutlined />}
             onClick={handleDownloadTemplate}
             loading={downloading}
-            style={{ marginRight: 8 }}
           >
             下载Excel模板
           </Button>
         </div>
-        <Upload {...uploadProps}>
-          <Button icon={<UploadOutlined />}>选择文件</Button>
-        </Upload>
         <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
           支持格式：.xlsx, .xls，文件大小不超过 10MB
         </div>
