@@ -63,6 +63,9 @@ const BasicLayout: React.FC = ({ children }) => {
     '/bigproject/list': ['首页', '基础数据', '大盘项目目标'],
     '/churnrate/list': ['首页', '基础数据', '媒体Churn Rate'],
     '/origindata/list': ['首页', '基础数据', '原始合同数据'],
+    '/metaadguidance/list': ['首页', '工具类', 'Meta广告指导'],
+    '/metaadguidance/recommendation-detail': ['首页', '工具类', 'Meta广告指导', '建议回传详情'],
+    '/metaadguidance/metric-detail': ['首页', '工具类', 'Meta广告指导', '指标回传详情'],
   };
 
   // 获取当前路径的面包屑
@@ -339,6 +342,10 @@ const BasicLayout: React.FC = ({ children }) => {
       icon: <ApiOutlined />,
       label: '工具类',
       children: [
+        {
+          key: '/metaadguidance/list',
+          label: <Link to="/metaadguidance/list">Meta广告指导</Link>,
+        },
         {
           key: '/tools/pending',
           label: <Link to="/tools/pending">待补充功能</Link>,

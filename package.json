@@ -9,18 +9,23 @@
     "start": "npm run dev"
   },
   "dependencies": {
-    "umi": "^3.5.41",
+    "@ant-design/icons": "^4.8.0",
+    "antd": "^4.24.16",
+    "file-saver": "^2.0.5",
+    "lowdb": "^1.0.0",
+    "moment": "^2.29.4",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "antd": "^4.24.16",
-    "@ant-design/icons": "^4.8.0",
-    "moment": "^2.29.4"
+    "sql.js": "^1.13.0",
+    "umi": "^3.5.41",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/sql.js": "^1.4.9",
     "@umijs/preset-react": "^1.8.31",
     "@umijs/test": "^3.5.41",
     "@umijs/yorkie": "^2.0.5",
-    "typescript": "^4.9.5",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "typescript": "^4.9.5"
   }
 }

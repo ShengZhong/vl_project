@@ -6,11 +6,11 @@ alwaysApply: true
 
 ## 1. 总体目标
 
-使用 Cursor 作为产品部门的一站式工具，输出三大交付物：
+使用 Cursor 作为产品部门的一站式工具，输出交付物：
 
 1. **可直接部署的前端原型代码**（基于 Umi + React + Ant Design v4）
 2. **标准化的 PRD 文档**（Markdown 格式）
-3. **用户操作手册**（Markdown 格式）
+<!-- 3. **用户操作手册**（Markdown 格式）- 暂时禁用，后续可能开放 -->
 
 所有交付物必须版本化、可协作、可追踪。
 
@@ -47,7 +47,7 @@ project_root/
 │   ├── prd/                       # PRD 文档目录
 │   │   ├── README.md              # PRD 索引
 │   │   └── PRD_{功能名称}.md       # 具体 PRD
-│   ├── user-manual/               # 用户手册目录
+│   ├── user-manual/               # 用户手册目录（暂时禁用，保留现有文件）
 │   │   ├── README.md              # 手册索引
 │   │   └── user_manual_{功能名称}.md
 │   └── summary/                   # 项目总结
@@ -58,12 +58,14 @@ project_root/
 │   ├── components/                # 公共组件
 │   ├── services/                  # API 服务层
 │   ├── types/                     # TypeScript 类型
+│   ├── db/                        # 本地数据库工具
+│   │   └── index.ts               # 数据库核心实现
 │   └── utils/                     # 工具函数
 └── .cursor/rules/                 # Cursor 规则文件
     ├── projectrules.mdc           # 产品团队总规则
     ├── frontend-standards.md      # 前端代码规范
     ├── prd-standards.md           # PRD 文档规范
-    └── user-manual-standards.md   # 用户手册规范
+    └── user-manual-standards.md   # 用户手册规范（暂时禁用，保留文件）
 ```
 
 ## 5. Git 分支与提交规范
@@ -83,7 +85,7 @@ project_root/
 **Type 类型**：
 
 - `feat`：新增功能原型或代码
-- `docs`：更新 PRD 或用户手册
+- `docs`：更新 PRD 文档（用户手册暂时禁用）
 - `fix`：修复原型或文档问题
 - `style`：调整 UI 样式或排版
 - `refactor`：重构代码或文档结构
@@ -120,7 +122,8 @@ style(AD-MAT-001): 优化素材列表页面布局
 
 ### 生成前端原型代码时
 
-- 必须同时生成对应的 PRD 文档和用户手册
+- 必须同时生成对应的 PRD 文档（用户手册暂时禁用）
+<!-- - 必须同时生成对应的 PRD 文档和用户手册 - 暂时禁用 -->
 - 遵循 `frontend-standards.md` 中的技术规范
 - 代码必须包含完整的 TypeScript 类型定义
 - 所有交互操作必须有明确的用户反馈（Loading、Success、Error）
@@ -134,39 +137,345 @@ style(AD-MAT-001): 优化素材列表页面布局
 - 包含完整的验收标准
 - 数据模型必须有 TypeScript 定义
 
+<!-- 用户手册生成规范 - 暂时禁用，后续可能开放 -->
+<!--
 ### 生成用户手册时
 
 - 遵循 `user-manual-standards.md` 中的模板规范
 - 必须包含截图占位符（实际截图由产品人员补充）
 - 必须包含常见问题解答（FAQ，至少 3-5 个）
 - 步骤说明必须清晰具体，避免模糊描述
+-->
 
-## 7. 质量检查清单
+## 7. 本地数据库使用规范
+
+### 数据库技术栈
+
+项目使用 **SQLite (sql.js)** 作为本地数据库解决方案，基于 **localStorage** 作为存储适配器，实现数据的持久化存储。
+
+- **数据库文件位置**：`src/db/index.ts`
+- **存储方式**：浏览器 localStorage（键名：`vl_project_db`，存储为 base64 编码的二进制数据）
+- **数据库引擎**：SQLite（通过 sql.js WebAssembly 实现）
+- **数据格式**：SQLite 数据库文件（二进制格式）
+
+### 数据库结构定义
+
+所有功能的数据表结构必须在 SQLite 数据库中定义。数据库使用 SQL 表结构，支持完整的 SQL 查询和操作。
+
+### 表命名规范
+
+- **表名格式**：使用小写字母，多个单词用下划线分隔
+- **命名原则**：
+  - 与功能模块名称保持一致
+  - 使用复数形式（如 `vlusers`、`metaadguidance_accounts`）
+  - 嵌套结构使用下划线分隔（如 `metaadguidance_accounts`）
+
+**示例**：
+- `vlusers`：VL 用户列表
+- `metaadguidance_accounts`：Meta 广告指导账户表
+- `metaadguidance_recommendations`：Meta 广告指导推荐表
+- `metaadguidance_metrics`：Meta 广告指导指标表
+- `profiles`：个人信息表
+
+### 表结构定义
+
+所有表结构在 `src/db/index.ts` 的 `createTables()` 函数中定义。新增功能时，需要：
+
+1. 在 `createTables()` 函数中添加 `CREATE TABLE` 语句
+2. 在 `addData()`、`getAllData()`、`updateData()` 等函数中添加对应的表操作逻辑
+
+### 数据库操作规范
+
+#### 1. 添加数据
+
+使用 `addData` 函数添加单条数据（**异步函数**）：
+
+```typescript
+import { addData } from '@/db';
+
+// 添加数据（注意：所有数据库操作都是异步的）
+const newUser = await addData('vlusers', {
+  vlid: '12740',
+  email: 'test@example.com',
+  // ... 其他字段
+});
+```
+
+使用 `addBatchData` 函数批量添加数据（**异步函数**）：
+
+```typescript
+import { addBatchData } from '@/db';
+
+// 批量添加
+await addBatchData('vlusers', [user1, user2, user3]);
+```
+
+#### 2. 删除数据
+
+使用 `removeData` 函数删除单条数据（**异步函数**）：
+
+```typescript
+import { removeData } from '@/db';
+
+// 根据条件删除
+await removeData('vlusers', (item) => item.vlid === '12740');
+```
+
+使用 `removeBatchData` 函数批量删除（**异步函数**）：
+
+```typescript
+import { removeBatchData } from '@/db';
+
+// 批量删除
+await removeBatchData('vlusers', (item) => item.status === 'inactive');
+```
+
+#### 3. 查询数据
+
+使用 `getAllData` 获取所有数据（**异步函数**）：
+
+```typescript
+import { getAllData } from '@/db';
+
+const allUsers = await getAllData<VLUser>('vlusers');
+```
+
+使用 `findData` 条件查询（**异步函数**）：
+
+```typescript
+import { findData } from '@/db';
+
+const activeUsers = await findData<VLUser>('vlusers', (item) => item.status === 'active');
+```
+
+使用 `findOneData` 查询单条数据（**异步函数**）：
+
+```typescript
+import { findOneData } from '@/db';
+
+const user = await findOneData<VLUser>('vlusers', (item) => item.vlid === '12740');
+```
+
+#### 4. 更新数据
+
+使用 `updateData` 函数更新数据（**异步函数**）：
+
+```typescript
+import { updateData } from '@/db';
+
+await updateData('vlusers', 
+  (item) => item.vlid === '12740',
+  (item) => ({ ...item, status: 'active' })
+);
+```
+
+### Mock 数据集成规范
+
+#### 在 Mock 文件中使用数据库
+
+所有 Mock 文件（`mock/*.ts`）应该使用本地数据库存储和操作数据，而不是硬编码的数组：
+
+**推荐做法**：
+
+```typescript
+import { 
+  getAllData, 
+  addData, 
+  removeData, 
+  updateData,
+  findData 
+} from '@/db';
+
+export default {
+  'GET /api/vlusers': async (req: any, res: any) => {
+    // 从数据库读取数据（注意：所有数据库操作都是异步的）
+    let allData = await getAllData('vlusers');
+    
+    // 应用筛选条件
+    if (req.query.vlid) {
+      allData = await findData('vlusers', item => 
+        item.vlid.includes(req.query.vlid)
+      );
+    }
+    
+    // 返回分页结果
+    const { pageNum = 1, pageSize = 10 } = req.query;
+    const start = (pageNum - 1) * pageSize;
+    const list = allData.slice(start, start + pageSize);
+    
+    res.json({
+      code: 200,
+      data: { list, total: allData.length }
+    });
+  },
+  
+  'POST /api/vlusers': async (req: any, res: any) => {
+    // 添加数据到数据库
+    const newUser = await addData('vlusers', {
+      ...req.body,
+      vlid: String(Math.floor(10000 + Math.random() * 90000)),
+      createdAt: new Date().toISOString(),
+    });
+    
+    res.json({ code: 200, data: newUser });
+  },
+  
+  'DELETE /api/vlusers/:vlid': async (req: any, res: any) => {
+    // 从数据库删除数据
+    const deleted = await removeData('vlusers', item => item.vlid === req.params.vlid);
+    
+    if (deleted) {
+      res.json({ code: 200, message: '删除成功' });
+    } else {
+      res.json({ code: 404, message: '数据不存在' });
+    }
+  },
+};
+```
+
+**禁止做法**：
+
+```typescript
+// ❌ 禁止硬编码数据数组
+const mockData = [
+  { vlid: '12739', ... },
+  { vlid: '12731', ... },
+];
+```
+
+### 数据初始化规范
+
+#### 1. 表结构初始化
+
+在 `src/db/index.ts` 的 `defaultData` 中定义所有表的默认结构：
+
+```typescript
+const defaultData: DatabaseSchema = {
+  vlusers: [],
+  metaadguidance: {
+    accounts: [],
+    recommendations: [],
+    metrics: [],
+  },
+  profiles: [],
+  // 新增功能时，在此添加对应的表结构
+};
+```
+
+#### 2. 初始数据填充
+
+如需预填充初始数据，可在 Mock 文件中使用 `addBatchData` 进行初始化：
+
+```typescript
+import { getAllData, addBatchData } from '@/db';
+
+// 检查表是否为空，为空则初始化（注意：所有数据库操作都是异步的）
+const initializeData = async () => {
+  const existingData = await getAllData('vlusers');
+  if (existingData.length === 0) {
+    await addBatchData('vlusers', initialData);
+  }
+};
+```
+
+### 数据库工具函数
+
+项目提供了以下数据库操作函数（位于 `src/db/index.ts`）：
+
+| 函数名 | 功能 | 使用场景 |
+|--------|------|----------|
+| `getDB()` | 获取数据库实例 | 需要直接操作数据库时 |
+| `getTable()` | 获取指定表 | 需要链式操作时 |
+| `addData()` | 添加单条数据 | 创建新记录 |
+| `addBatchData()` | 批量添加数据 | 批量导入或初始化 |
+| `removeData()` | 删除单条数据 | 删除记录 |
+| `removeBatchData()` | 批量删除数据 | 批量删除 |
+| `findData()` | 条件查询多条 | 筛选数据 |
+| `findOneData()` | 条件查询单条 | 查找详情 |
+| `updateData()` | 更新数据 | 修改记录 |
+| `getAllData()` | 获取所有数据 | 列表查询 |
+| `clearTable()` | 清空表数据 | 重置功能 |
+| `createTable()` | 创建新表 | 动态创建表 |
+| `hasTable()` | 检查表是否存在 | 表存在性检查 |
+| `exportDB()` | 导出数据库 | 数据备份 |
+| `importDB()` | 导入数据库 | 数据恢复 |
+| `resetDB()` | 重置数据库 | 重置所有数据 |
+
+### 数据备份与恢复
+
+#### 导出数据
+
+```typescript
+import { exportDB } from '@/db';
+
+const backup = exportDB(); // 返回 JSON 字符串
+```
+
+#### 导入数据
+
+```typescript
+import { importDB } from '@/db';
+
+try {
+  importDB(backupJsonString);
+} catch (error) {
+  console.error('导入失败', error);
+}
+```
+
+### 注意事项
+
+1. **数据持久化**：数据存储在浏览器 localStorage 中（以 base64 编码的二进制格式），清除浏览器数据会导致数据丢失
+2. **数据大小限制**：localStorage 通常有 5-10MB 的限制，注意控制数据量
+3. **异步操作**：**所有数据库操作函数都是异步的**，必须使用 `await` 或 `.then()` 处理
+4. **类型安全**：使用 TypeScript 泛型确保类型安全
+5. **错误处理**：所有数据库操作都应该有适当的错误处理（使用 try-catch）
+6. **数据一致性**：确保 Mock 文件中的数据操作与数据库操作保持一致
+7. **SQLite 特性**：支持完整的 SQL 查询，包括 JOIN、GROUP BY、ORDER BY 等复杂操作（可在 `getDB()` 返回的数据库实例上直接执行 SQL）
+8. **浏览器兼容性**：sql.js 使用 WebAssembly，需要现代浏览器支持
+
+### 新增功能时的数据库操作
+
+当创建新功能时，必须：
+
+1. **创建 SQL 表结构**：在 `src/db/index.ts` 的 `createTables()` 函数中添加 `CREATE TABLE` 语句
+2. **实现表操作函数**：在 `addData()`、`getAllData()`、`updateData()`、`removeData()` 等函数中添加新表的操作逻辑
+3. **在 Mock 文件中使用数据库**：使用数据库函数而非硬编码数据（注意使用 `await`）
+4. **初始化数据**：如需要，在 Mock 文件中初始化初始数据（使用异步函数）
+
+## 8. 质量检查清单
 
 在提交任何内容前，必须确认：
 
 - [ ] 功能点 ID 已正确分配且格式符合规范
 - [ ] 前端原型代码已生成并可运行
 - [ ] PRD 文档已按规范编写，包含所有必需章节
-- [ ] 用户手册已按规范编写，包含操作步骤和 FAQ
-- [ ] 三者之间的功能点 ID 保持一致
+<!-- - [ ] 用户手册已按规范编写，包含操作步骤和 FAQ - 暂时禁用 -->
+- [ ] PRD 和代码之间的功能点 ID 保持一致
 - [ ] Git 提交信息符合规范格式
 - [ ] 所有文件路径遵循项目结构规范
 - [ ] 代码使用 Ant Design v4，未使用 v5 组件
 - [ ] TypeScript 类型定义完整
 - [ ] 所有 Modal 弹框符合使用规范
+- [ ] Mock 文件已集成本地数据库（不使用硬编码数据）
+- [ ] 数据库表结构已在 `createTables()` 函数中定义
+- [ ] 所有数据库操作都使用了 `await`（异步处理）
 
-## 8. 禁止事项
+## 9. 禁止事项
 
 - ❌ 禁止在 PRD 中使用模糊描述（如"优化用户体验"、"更方便"）
 - ❌ 禁止提交无意义的 Git 信息（如"update files"、"test"）
 - ❌ 禁止前端代码使用 Ant Design v5 组件
-- ❌ 禁止 PRD、代码、手册之间的版本不一致
+- ❌ 禁止 PRD 和代码之间的版本不一致（用户手册暂时禁用）
+<!-- - ❌ 禁止 PRD、代码、手册之间的版本不一致 - 暂时禁用 -->
 - ❌ 禁止缺少功能点 ID 的任何交付物
 - ❌ 禁止直接跳转的详情/新建/编辑页面（必须使用 Modal）
 - ❌ 禁止创建已上线功能时未经评审直接替换逻辑
+- ❌ 禁止在 Mock 文件中使用硬编码数据数组（必须使用数据库）
+- ❌ 禁止直接操作 localStorage（必须通过 `src/db/index.ts` 提供的函数）
+- ❌ 禁止同步调用数据库函数（所有数据库操作都是异步的，必须使用 `await`）
 
-## 9. 交付物联动规则
+## 10. 交付物联动规则
 
 ### 新增功能流程
 
@@ -175,11 +484,15 @@ style(AD-MAT-001): 优化素材列表页面布局
 1. **生成功能点 ID**（如 AD-ACC-001）
 2. **创建 PRD 文档**：`docs/prd/PRD_{功能名称}.md`
 3. **生成前端原型代码**：`src/pages/{模块名}/`
-4. **生成用户手册**：`docs/user-manual/user_manual_{功能名称}.md`
-5. **更新索引文件**：
+<!-- 4. **生成用户手册**：`docs/user-manual/user_manual_{功能名称}.md` - 暂时禁用 -->
+4. **配置数据库表结构**：
+   - 在 `src/db/index.ts` 的 `DatabaseSchema` 中添加新表定义
+   - 在 `defaultData` 中添加新表的默认值
+5. **创建 Mock 文件**：`mock/{模块名}.ts`，使用数据库函数而非硬编码数据
+6. **更新索引文件**：
    - `docs/prd/README.md`（添加新 PRD 条目）
-   - `docs/user-manual/README.md`（添加新手册条目）
-6. **更新路由配置**：`.umirc.ts`（如需要）
+   <!-- - `docs/user-manual/README.md`（添加新手册条目）- 暂时禁用 -->
+7. **更新路由配置**：`.umirc.ts`（如需要）
 
 ### 修改功能流程
 
@@ -187,8 +500,8 @@ style(AD-MAT-001): 优化素材列表页面布局
 
 1. **同步更新 PRD 文档**中的变更记录（新增版本）
 2. **修改前端原型代码**
-3. **同步更新用户手册**中的相关步骤
-4. **在 Git 提交信息中注明修改内容**
+<!-- 3. **同步更新用户手册**中的相关步骤 - 暂时禁用 -->
+3. **在 Git 提交信息中注明修改内容**
 
 ### 删除功能流程
 
@@ -196,10 +509,10 @@ style(AD-MAT-001): 优化素材列表页面布局
 
 1. **标记 PRD 文档为废弃**（不删除，保留历史）
 2. **移除前端原型代码**
-3. **归档用户手册**（移至 `docs/user-manual/archived/`）
-4. **更新索引文件**（标记状态为已废弃）
+<!-- 3. **归档用户手册**（移至 `docs/user-manual/archived/`）- 暂时禁用 -->
+3. **更新索引文件**（标记状态为已废弃）
 
-## 10. Prompt 模板
+## 11. Prompt 模板
 
 ### 创建新功能的标准 Prompt
 
@@ -215,7 +528,7 @@ style(AD-MAT-001): 优化素材列表页面布局
 请生成：
 1. PRD 文档（包含需求描述、交互流程、验收标准）
 2. 前端原型代码（Umi + React + Ant Design v4）
-3. 用户操作手册（包含步骤说明、注意事项、FAQ）
+<!-- 3. 用户操作手册（包含步骤说明、注意事项、FAQ）- 暂时禁用 -->
 ```
 
 ### 修改现有功能的标准 Prompt
@@ -230,38 +543,41 @@ style(AD-MAT-001): 优化素材列表页面布局
 请同步更新：
 1. 前端原型代码
 2. PRD 文档（更新变更记录）
-3. 用户操作手册（更新相关步骤）
+<!-- 3. 用户操作手册（更新相关步骤）- 暂时禁用 -->
 ```
 
-## 11. 参考其他规则文件
+## 12. 参考其他规则文件
 
 - **前端代码规范**：详见 `.cursor/rules/frontend-standards.md`
 - **PRD 文档规范**：详见 `.cursor/rules/prd-standards.md`
-- **用户手册规范**：详见 `.cursor/rules/user-manual-standards.md`
+<!-- - **用户手册规范**：详见 `.cursor/rules/user-manual-standards.md` - 暂时禁用 -->
 
-## 12. 工作流程总结
+## 13. 工作流程总结
 
 ```
 需求提出 → 分配功能点ID → 创建分支
     ↓
 编写PRD → 评审PRD → PRD定稿
     ↓
-生成前端代码 → 生成用户手册 → 更新索引
+生成前端代码 → 更新索引（用户手册暂时禁用）
     ↓
 代码评审 → 文档审核 → 合并到主分支
     ↓
 标记为已实现 → 归档和版本管理
 ```
 
-## 13. 最佳实践
+## 14. 最佳实践
 
 ### DO ✅
 
 - 使用具体、可量化的描述
-- 保持 PRD、代码、手册三者一致
+- 保持 PRD 和代码一致（用户手册暂时禁用）
+<!-- - 保持 PRD、代码、手册三者一致 - 暂时禁用 -->
 - 及时更新文档变更记录
 - 使用 Modal 弹框处理详情/新建/编辑
 - 提供清晰的错误提示和用户反馈
+- 在 Mock 文件中使用数据库存储和操作数据
+- 新增功能时同步更新数据库表结构
 
 ### DON'T ❌
 
@@ -270,8 +586,10 @@ style(AD-MAT-001): 优化素材列表页面布局
 - 不要忘记更新索引文件
 - 不要混用 Ant Design v4 和 v5
 - 不要创建独立的详情/编辑页面路由
+- 不要在 Mock 文件中硬编码数据数组
+- 不要直接操作 localStorage，必须使用数据库工具函数
 
 ---
 
 **最后更新**：2025-01-15  
-**版本**：v1.0
+**版本**：v1.1

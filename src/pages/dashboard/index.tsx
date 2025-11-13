@@ -38,7 +38,7 @@ const Dashboard: React.FC = () => {
       </Row>
       
       <Card style={{ marginTop: 16 }}>
-        <h3>欢迎使用 VisionLine 产品原型平台</h3>
+        <h3>欢迎使用 媒介业务中台 产品原型平台</h3>
         <p>这是一个基于 Umi + React + Ant Design v4 的产品原型项目。</p>
         <p>请参考项目文档开始创建您的第一个功能模块。</p>
       </Card>
