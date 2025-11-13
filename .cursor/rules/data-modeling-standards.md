@@ -2,33 +2,514 @@
 
 ## 1. 文档目标
 
-- 提供标准化的数据建模流程和方法论
-- 确保所有功能模块建立正确的实体关系
-- 避免数据孤岛和硬编码问题
-- 支持复杂的业务查询场景
+- 提供标准化的数据建模流程
+- 确保实体关系设计的完整性和一致性
+- 防止数据孤立和关联缺失问题
+- 支持复杂查询场景和数据关联
 
-## 2. 何时使用本规范
+## 2. 核心原则
 
-**必须使用**：
-- 创建任何新功能时
-- 修改现有功能的数据结构时
-- 涉及多个业务实体交互时
-- 需要跨表查询数据时
+### 2.1 实体独立性
+- 每个实体应代表一个独立的业务概念
+- 实体必须有明确的生命周期（创建、更新、删除）
+- 实体必须有唯一标识（主键）
 
-**可选使用**：
-- 纯展示型页面（无数据存储）
-- 简单的单表CRUD操作
+### 2.2 关系完整性
+- 所有实体关系必须通过外键约束建立
+- 外键字段必须创建索引以提升查询性能
+- 必须明确定义级联删除/更新规则
 
-## 3. 标准提示词模板
+### 2.3 数据一致性
+- TypeScript 类型定义必须与数据库结构一致
+- Mock 数据必须包含完整的关联关系
+- 查询接口必须支持跨表关联查询
 
-在创建或修改功能时，请使用以下完整模板与 AI 协作：
+## 3. 五步数据建模流程
+
+### 第一步：识别核心实体
+
+从需求文档中识别所有需要持久化存储的业务对象。
+
+**识别方法**：
+1. **名词提取法**：标记需求中的所有核心名词
+2. **生命周期判断**：判断对象是否有独立的创建、更新、删除操作
+3. **属性数量判断**：如果对象有多个属性需要存储，则作为独立实体
+
+**实体分类**：
+- **主实体**：功能主要操作的核心对象
+- **关联实体**：与主实体相关但有独立生命周期的对象
+- **字段属性**：只是某个实体的一个属性值，不需要独立存储
+
+**示例**：
+```
+需求："管理 Meta 广告账户的指导建议，追踪客户采纳情况"
+
+识别结果：
+✅ 主实体：
+  - 广告账户 (AdAccount) - 核心业务对象
+  - 客户信息 (Customer) - 账户所有者
+
+✅ 关联实体：
+  - 指导建议 (Recommendation) - 有独立的创建、查询、删除操作
+  - 指标数据 (Metric) - 有独立的数据和生命周期
+  - 人员信息 (Personnel) - 签约销售、负责销售等
+
+❌ 字段属性（不需要独立实体）：
+  - 账户状态 - 只是账户的一个枚举值
+  - 账户评分 - 只是账户的一个数值属性
+```
+
+### 第二步：定义实体属性
+
+为每个实体明确定义属性（字段）。
+
+**属性定义模板**：
+```markdown
+**实体名称：[EntityName]**
+- 主键：[fieldName]（类型，说明）
+- 属性1：[fieldName]（类型，是否必填，说明）
+- 属性2：[fieldName]（类型，是否必填，说明）
+- ...
+- 外键字段：[foreignKey]（关联到哪个实体的哪个字段）
+- 时间戳：createdAt, updatedAt（自动维护）
+```
+
+**示例**：
+```markdown
+**实体：客户信息 (Customer)**
+- 主键：id（INTEGER，自增 ID）
+- 属性1：customerId（TEXT，必填，客户唯一标识）
+- 属性2：customerName（TEXT，必填，客户名称）
+- 属性3：consolidatedEntity（TEXT，必填，合并主体）
+- 属性4：customerType（TEXT，选填，客户类型：BV/MH/BMP）
+- 外键字段：settlementEntityId（INTEGER，关联到 SettlementEntity.id）
+- 时间戳：createdAt, updatedAt
+
+**实体：广告账户 (AdAccount)**
+- 主键：adAccountId（TEXT，Meta 广告账户 ID）
+- 属性1：accountInfo（TEXT，账户信息）
+- 属性2：accountScore（INTEGER，账户评分）
+- 外键字段：customerId（INTEGER，关联到 Customer.id）
+- 时间戳：createdAt, updatedAt
+```
+
+### 第三步：明确实体关系
+
+定义实体之间的关系类型和关联方式。
+
+**关系类型**：
+1. **1 对 1**：一个实体对应另一个实体的一个实例
+2. **1 对多**：一个实体对应另一个实体的多个实例
+3. **多对多**：需要中间表建立关联
+
+**关系定义模板**：
+```
+[实体A] ──(关系类型)──> [实体B]
+  └─ 关系说明：[业务含义]
+  └─ 外键：[B表.外键字段] 引用 [A表.主键]
+  └─ 级联规则：[CASCADE / SET NULL / RESTRICT]
+  └─ 业务规则：[具体的业务约束]
+```
+
+**级联规则说明**：
+- **CASCADE**：删除父实体时，自动删除所有子实体（强依赖关系）
+- **SET NULL**：删除父实体时，子实体的外键设置为 NULL（弱依赖关系）
+- **RESTRICT**：如果存在子实体，禁止删除父实体（保护性删除）
+
+**示例**：
+```
+Customer ──(1对多)──> AdAccount
+  └─ 关系说明：一个客户可以拥有多个广告账户
+  └─ 外键：AdAccount.customerId 引用 Customer.id
+  └─ 级联规则：SET NULL（删除客户时，账户不删除但解除关联）
+  └─ 业务规则：一个账户只能属于一个客户
+
+AdAccount ──(1对多)──> Recommendation
+  └─ 关系说明：一个广告账户可以有多条指导建议
+  └─ 外键：Recommendation.adAccountId 引用 AdAccount.adAccountId
+  └─ 级联规则：CASCADE（删除账户时，级联删除所有建议）
+  └─ 业务规则：建议必须关联到具体的账户
+
+Customer ──(1对多)──> Personnel
+  └─ 关系说明：一个客户可以有多个相关人员（签约销售、负责销售等）
+  └─ 外键：Personnel.customerId 引用 Customer.id
+  └─ 级联规则：CASCADE（删除客户时，级联删除人员信息）
+  └─ 业务规则：同一客户的同一角色只能有一个人员
+```
+
+**实体关系图**：
+```
+SettlementEntity (结算主体)
+    └──(1:N)──> Customer (客户信息)
+                   ├──(1:N)──> Personnel (人员信息)
+                   │            ├─ 签约销售
+                   │            └─ 负责销售
+                   └──(1:N)──> AdAccount (广告账户)
+                                  ├──(1:N)──> Recommendation (指导建议)
+                                  └──(1:N)──> Metric (指标数据)
+```
+
+### 第四步：数据库表设计
+
+基于实体关系设计具体的数据库表结构。
+
+**SQL DDL 模板**：
+```sql
+-- 父实体表
+CREATE TABLE IF NOT EXISTS parent_entity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  field1 TEXT NOT NULL,
+  field2 INTEGER DEFAULT 0,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+
+-- 子实体表（包含外键）
+CREATE TABLE IF NOT EXISTS child_entity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  field1 TEXT NOT NULL,
+  parentId INTEGER NOT NULL,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (parentId) REFERENCES parent_entity(id) ON DELETE CASCADE
+);
+
+-- 为外键创建索引（提升查询性能）
+CREATE INDEX IF NOT EXISTS idx_child_entity_parentId 
+  ON child_entity(parentId);
+```
+
+**完整示例（Meta 广告指导）**：
+```sql
+-- 结算主体表
+CREATE TABLE IF NOT EXISTS settlement_entities (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entityId TEXT UNIQUE NOT NULL,
+  entityName TEXT NOT NULL,
+  entityType TEXT,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+
+-- 客户信息表
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customerId TEXT UNIQUE NOT NULL,
+  customerName TEXT NOT NULL,
+  consolidatedEntity TEXT NOT NULL,
+  customerType TEXT,
+  settlementEntityId INTEGER,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (settlementEntityId) REFERENCES settlement_entities(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_customers_settlementEntityId 
+  ON customers(settlementEntityId);
+
+-- 人员信息表
+CREATE TABLE IF NOT EXISTS personnel (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  personnelName TEXT,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL,
+  customerId INTEGER NOT NULL,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_personnel_customerId 
+  ON personnel(customerId);
+
+-- 广告账户表
+CREATE TABLE IF NOT EXISTS metaadguidance_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  adAccountId TEXT UNIQUE NOT NULL,
+  accountInfo TEXT,
+  accountAttributes TEXT,
+  accountScore INTEGER DEFAULT 0,
+  guidanceCount INTEGER DEFAULT 0,
+  lastUpdateTime TEXT,
+  customerId INTEGER,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_metaadguidance_accounts_customerId 
+  ON metaadguidance_accounts(customerId);
+
+-- 广告指导建议表
+CREATE TABLE IF NOT EXISTS metaadguidance_recommendations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  adAccountId TEXT NOT NULL,
+  guidanceType TEXT,
+  guidanceContent TEXT,
+  accountImprovementScore INTEGER DEFAULT 0,
+  guidanceUpdateTime TEXT,
+  userBehavior TEXT,
+  createdAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_metaadguidance_recommendations_adAccountId 
+  ON metaadguidance_recommendations(adAccountId);
+
+-- 广告指标数据表
+CREATE TABLE IF NOT EXISTS metaadguidance_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  adAccountId TEXT NOT NULL,
+  guidanceType TEXT,
+  guidanceContent TEXT,
+  hasGuidance INTEGER DEFAULT 0,
+  userReviewed INTEGER DEFAULT 0,
+  callbackUpdateTime TEXT NOT NULL,
+  createdAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_metaadguidance_metrics_adAccountId 
+  ON metaadguidance_metrics(adAccountId);
+```
+
+### 第五步：数据查询场景
+
+明确主要的数据查询需求，确保实体关系能支持这些查询。
+
+**查询场景模板**：
+```markdown
+**查询场景 [N]**：[场景描述]
+- 查询目的：[为什么需要这个查询]
+- 查询内容：[需要获取什么数据]
+- 关联表：[需要 JOIN 哪些表]
+- 查询条件：[筛选条件]
+- 性能要求：[响应时间要求]
+- SQL 示例：[关键的 SQL 逻辑]
+```
+
+**示例**：
+```markdown
+**查询场景1**：列表页展示账户信息（包含客户和人员信息）
+- 查询目的：运营人员查看所有广告账户及其关联的客户、销售信息
+- 查询内容：账户信息 + 客户信息 + 结算主体 + 签约销售 + 负责销售
+- 关联表：
+  - metaadguidance_accounts (主表)
+  - JOIN customers (通过 customerId)
+  - JOIN settlement_entities (通过 settlementEntityId)
+  - JOIN personnel (通过 customerId，筛选不同 role)
+- 查询条件：支持按合并主体、结算主体、广告账户ID筛选
+- 性能要求：< 2 秒
+- 伪代码示例：
+```typescript
+const accounts = await getAllData('metaadguidance.accounts');
+const customers = await getAllData('customers');
+const personnel = await getAllData('personnel');
+const settlements = await getAllData('settlement_entities');
+
+const result = accounts.map(account => {
+  const customer = customers.find(c => c.id === account.customerId);
+  const settlement = settlements.find(s => s.id === customer?.settlementEntityId);
+  const contractSales = personnel.find(p => 
+    p.customerId === account.customerId && p.role === 'CONTRACT_SALES'
+  );
+  const responsibleSales = personnel.find(p => 
+    p.customerId === account.customerId && p.role === 'RESPONSIBLE_SALES'
+  );
+  
+  return {
+    ...account,
+    customer,
+    settlementEntity: settlement,
+    contractSales,
+    responsibleSales,
+  };
+});
+```
+
+**查询场景2**：查看某个账户的所有指导建议
+- 查询目的：运营人员查看特定账户的指导建议详情
+- 查询内容：账户基本信息 + 指导建议列表
+- 关联表：
+  - metaadguidance_accounts (主表)
+  - JOIN metaadguidance_recommendations (通过 adAccountId)
+- 查询条件：adAccountId = [指定账户ID]
+- 性能要求：< 1 秒
+- 伪代码示例：
+```typescript
+const recommendations = await findData(
+  'metaadguidance.recommendations',
+  (item) => item.adAccountId === adAccountId
+);
+```
+
+**查询场景3**：查看某个客户的所有账户
+- 查询目的：运营人员查看特定客户拥有的所有广告账户
+- 查询内容：客户信息 + 账户列表 + 每个账户的指导数量
+- 关联表：
+  - customers (主表)
+  - JOIN metaadguidance_accounts (通过 customerId)
+  - 聚合 metaadguidance_recommendations (计数)
+- 查询条件：customerId = [指定客户ID]
+- 性能要求：< 2 秒
+```
+
+## 4. 实体拆分方法论
+
+### 4.1 名词提取法
+
+**步骤**：
+1. 阅读需求文档，标记所有业务相关的名词
+2. 判断名词是否需要独立存储数据
+3. 如果需要存储多个属性，则作为独立实体
+4. 如果只是一个属性值，则作为字段
+
+**判断标准**：
+- ✅ **独立实体**：有多个属性、有独立的生命周期、需要单独查询
+- ❌ **字段属性**：只有单一值、依附于其他实体存在
+
+**示例**：
+```
+需求分析：管理 Meta 广告账户、客户信息、结算主体、签约销售、负责销售
+
+名词列表：
+1. 广告账户 → ✅ 独立实体（有账户ID、状态、评分等多个属性）
+2. 客户信息 → ✅ 独立实体（有客户名称、类型等属性）
+3. 结算主体 → ✅ 独立实体（多个客户可能共享同一结算主体）
+4. 签约销售 → ⚠️  人员角色（需要进一步分析）
+5. 负责销售 → ⚠️  人员角色（需要进一步分析）
+
+进一步分析：
+- "签约销售"和"负责销售"都有邮箱、姓名等属性
+- 它们是同一类对象（人员）的不同角色
+- 应该创建统一的"人员信息"实体，通过 role 字段区分角色
+→ ✅ Personnel 实体（包含 role 字段：CONTRACT_SALES / RESPONSIBLE_SALES）
+```
+
+### 4.2 生命周期分析法
+
+**判断标准**：
+- 对象是否可以独立创建？
+- 对象是否可以独立更新？
+- 对象是否可以独立删除？
+- 对象的存在是否依赖其他对象？
+
+**关系判断**：
+- **独立生命周期** → 独立实体（可能通过外键关联）
+- **完全依赖** → 作为关联实体，使用 CASCADE 级联删除
+- **部分依赖** → 作为关联实体，使用 SET NULL
+
+**示例**：
+```
+对象：广告指导建议
+
+生命周期分析：
+- 可以独立创建？❌ 必须属于某个广告账户
+- 可以独立更新？✅ 可以更新建议内容、状态
+- 可以独立删除？✅ 可以删除过期的建议
+- 存在是否依赖广告账户？✅ 账户删除后，建议没有意义
+
+结论：
+→ 独立实体，但强依赖于广告账户
+→ 使用 CASCADE 级联删除
+→ 外键：Recommendation.adAccountId → AdAccount.adAccountId
+```
+
+### 4.3 关系识别法
+
+**关系类型判断**：
+1. **1 对 1**：A 和 B 互相唯一对应（例如：用户 - 个人资料）
+2. **1 对多**：A 可以对应多个 B（例如：客户 - 广告账户）
+3. **多对多**：A 可以对应多个 B，B 也可以对应多个 A（需要中间表）
+
+**设计原则**：
+- **1 对 1**：考虑是否可以合并为一个实体（除非数据量大或访问频率差异大）
+- **1 对多**："多"的一方作为独立实体，包含"1"的外键
+- **多对多**：创建中间关联表，包含两个外键
+
+**示例**：
+```
+关系分析：客户 vs 广告账户
+
+问题：一个客户可以有多少个广告账户？
+答案：一个客户可以有多个广告账户
+
+问题：一个广告账户可以属于多少个客户？
+答案：一个广告账户只能属于一个客户
+
+结论：1 对多关系
+设计：
+- Customer (1) ──> AdAccount (多)
+- 外键：AdAccount.customerId 引用 Customer.id
+```
+
+## 5. 实体关系检查清单
+
+### 5.1 创建功能前检查
+
+在开始编码前，必须确认以下内容：
+
+- [ ] 我已经列出所有核心业务名词
+- [ ] 我已经区分哪些是独立实体，哪些是字段
+- [ ] 我已经明确每个实体的主键
+- [ ] 我已经识别所有实体之间的关系（1对1/1对多/多对多）
+- [ ] 我已经确定外键字段的位置
+- [ ] 我已经考虑级联删除的规则
+- [ ] 我已经列出主要的查询场景
+- [ ] 我已经确认实体关系能支持所有查询场景
+- [ ] 我已经绘制实体关系图（ER图）
+
+### 5.2 数据库设计检查
+
+数据库表结构必须满足：
+
+- [ ] 所有实体都有对应的数据库表
+- [ ] 每个表都有明确的主键
+- [ ] 所有关联关系都有外键约束
+- [ ] 外键字段已创建索引（性能优化）
+- [ ] 级联规则已正确设置（CASCADE / SET NULL / RESTRICT）
+- [ ] 表名遵循命名规范（小写、下划线分隔）
+- [ ] 字段类型选择合理（TEXT / INTEGER / REAL）
+- [ ] 必填字段设置了 NOT NULL 约束
+- [ ] 包含时间戳字段（createdAt, updatedAt）
+
+### 5.3 代码实现检查
+
+代码实现必须满足：
+
+- [ ] TypeScript 类型定义与数据库表结构一致
+- [ ] 每个实体都有对应的 TypeScript 接口
+- [ ] 接口中包含关联实体的类型（可选字段）
+- [ ] Mock 数据包含关联数据的初始化
+- [ ] Mock 数据使用数据库函数，不是硬编码数组
+- [ ] 查询接口支持跨表关联查询（通过外键）
+- [ ] 详情页面能通过外键查询关联数据
+- [ ] 删除操作考虑了级联影响
+
+### 5.4 文档完整性检查
+
+PRD 文档必须包含：
+
+- [ ] 完整的数据模型章节
+- [ ] 实体关系图（ER图）
+- [ ] 每个实体的说明（业务含义）
+- [ ] 实体属性列表（字段说明）
+- [ ] 关联关系说明（外键、级联规则）
+- [ ] 主要查询场景说明
+- [ ] 数据初始化说明
+
+## 6. 标准提示词模板
+
+当创建或修改功能时，使用以下提示词模板，确保 AI 正确理解实体关系需求。
+
+### 6.1 完整提示词模板
 
 ```markdown
 ## 功能需求
 
 创建新功能/修改功能：[功能名称]
 
-功能点 ID: [自动生成或手动指定，如 AD-ACC-001]
+功能点 ID: [如 AD-ACC-001]
 所属模块: [媒介服务/投放服务/其他]
 功能背景: [为什么需要这个功能，解决什么问题]
 用户角色: [运营人员/广告主/管理员]
@@ -40,8 +521,6 @@
 
 ### 第一步：识别核心实体
 
-请列出本功能涉及的所有核心实体（业务对象）：
-
 **主实体**（功能主要操作的对象）：
 - [ ] 实体1：[名称]，说明：[该实体代表什么业务概念]
 - [ ] 实体2：[名称]，说明：[该实体代表什么业务概念]
@@ -50,43 +529,20 @@
 - [ ] 实体A：[名称]，与主实体关系：[1对1 / 1对多 / 多对多]
 - [ ] 实体B：[名称]，与主实体关系：[1对1 / 1对多 / 多对多]
 
-**示例**：
-主实体：
-- [x] 广告账户 (AdAccount)，说明：Meta 广告账户，是广告投放的基本单位
-- [x] 客户信息 (Customer)，说明：广告账户的所有者/使用者
-
-关联实体：
-- [x] 广告指导建议 (AdGuidanceRecommendation)，与广告账户关系：1对多
-- [x] 建议回传记录 (RecommendationCallback)，与广告指导建议关系：1对多
-- [x] 指标数据 (MetricData)，与广告账户关系：1对多
-
 ### 第二步：定义实体属性
-
-为每个实体列出关键属性（字段）：
 
 **实体1：[实体名称]**
 - 主键：[字段名]（类型）
 - 属性1：[字段名]（类型，是否必填，说明）
 - 属性2：[字段名]（类型，是否必填，说明）
-- ...
 - 关联字段：[外键字段名]（关联到哪个实体）
 
-**示例**：
-**实体1：广告账户 (AdAccount)**
-- 主键：adAccountId（string，Meta 广告账户 ID）
-- 属性1：accountName（string，必填，账户名称）
-- 属性2：accountStatus（enum，必填，账户状态）
-- 关联字段：customerId（外键，关联到 Customer.id）
-
-**实体2：广告指导建议 (AdGuidanceRecommendation)**
-- 主键：id（自增 ID）
-- 属性1：guidanceType（string，必填，指导类型）
-- 属性2：guidanceContent（string，必填，指导内容）
-- 关联字段：adAccountId（外键，关联到 AdAccount.adAccountId）
+**实体2：[实体名称]**
+- 主键：[字段名]（类型）
+- 属性1：[字段名]（类型，是否必填，说明）
+- 关联字段：[外键字段名]（关联到哪个实体）
 
 ### 第三步：明确实体关系
-
-用文字或图形描述实体之间的关系：
 
 ```
 [主实体A] ──(关系类型)──> [关联实体B]
@@ -95,105 +551,27 @@
   └─ 级联规则：删除 A 时如何处理 B（CASCADE / SET NULL / RESTRICT）
 ```
 
-**示例**：
-```
-Customer ──(1对多)──> AdAccount
-  └─ 关系说明：一个客户可以拥有多个广告账户
-  └─ 外键：AdAccount.customerId 引用 Customer.id
-  └─ 级联规则：删除客户时，关联账户设置为 NULL
-
-AdAccount ──(1对多)──> AdGuidanceRecommendation
-  └─ 关系说明：一个广告账户可以有多条指导建议
-  └─ 外键：AdGuidanceRecommendation.adAccountId 引用 AdAccount.adAccountId
-  └─ 级联规则：删除账户时，级联删除所有相关建议
-
-AdGuidanceRecommendation ──(1对多)──> RecommendationCallback
-  └─ 关系说明：一条指导建议可以有多次回传记录
-  └─ 外键：RecommendationCallback.recommendationId 引用 AdGuidanceRecommendation.id
-  └─ 级联规则：删除建议时，级联删除所有回传记录
-```
-
 ### 第四步：数据库表设计
 
-基于上述实体关系，请设计数据库表结构：
-
-**表1：[表名]**
 ```sql
 CREATE TABLE IF NOT EXISTS [table_name] (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   [field1] TEXT NOT NULL,
-  [field2] INTEGER DEFAULT 0,
   [foreignKey] TEXT,
   createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now')),
   FOREIGN KEY ([foreignKey]) REFERENCES [parent_table]([parent_key])
 );
 
--- 创建索引（提高查询性能）
 CREATE INDEX IF NOT EXISTS idx_[table_name]_[foreignKey] 
   ON [table_name]([foreignKey]);
 ```
 
-**示例**：
-```sql
--- 客户信息表
-CREATE TABLE IF NOT EXISTS customers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  customerName TEXT NOT NULL,
-  settlementEntity TEXT,        -- 结算主体
-  registrationEntity TEXT,       -- 开户主体
-  contractSales TEXT,            -- 签约销售
-  responsibleSales TEXT,         -- 负责销售
-  createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now'))
-);
-
--- 广告账户表
-CREATE TABLE IF NOT EXISTS metaadguidance_accounts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT UNIQUE NOT NULL,
-  accountName TEXT,
-  customerId INTEGER,            -- 外键：关联客户
-  createdAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (customerId) REFERENCES customers(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_accounts_customerId 
-  ON metaadguidance_accounts(customerId);
-
--- 广告指导建议表
-CREATE TABLE IF NOT EXISTS metaadguidance_recommendations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT NOT NULL,     -- 外键：关联广告账户
-  guidanceType TEXT,
-  guidanceContent TEXT,
-  createdAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId)
-);
-
-CREATE INDEX IF NOT EXISTS idx_recommendations_adAccountId 
-  ON metaadguidance_recommendations(adAccountId);
-```
-
 ### 第五步：数据查询场景
-
-列出主要的查询场景，确保实体关系支持这些查询：
 
 **查询场景1**：[场景描述]
 - 查询内容：[需要获取什么数据]
 - 关联表：[需要 JOIN 哪些表]
 - 查询条件：[筛选条件]
-
-**示例**：
-**查询场景1**：查看某个客户的所有广告账户及其指导建议数量
-- 查询内容：客户信息 + 账户列表 + 每个账户的建议数量
-- 关联表：customers JOIN metaadguidance_accounts JOIN metaadguidance_recommendations
-- 查询条件：customerId = [指定客户ID]
-
-**查询场景2**：查看某个广告账户的所有指导建议及回传记录
-- 查询内容：账户信息 + 建议列表 + 每条建议的回传记录
-- 关联表：metaadguidance_accounts JOIN metaadguidance_recommendations JOIN recommendation_callbacks
-- 查询条件：adAccountId = [指定账户ID]
 
 ---
 
@@ -223,522 +601,164 @@ CREATE INDEX IF NOT EXISTS idx_recommendations_adAccountId
 - [ ] Mock 数据包含关联数据的初始化
 - [ ] 查询接口支持跨表查询（通过外键关联）
 - [ ] 详情页面能正确显示关联数据
-
-### 文档检查
-- [ ] PRD 包含完整的数据模型章节
-- [ ] 数据模型图清晰展示实体关系
-- [ ] 每个实体的作用都有说明
-- [ ] 关联关系的业务含义已说明
 ```
 
----
-
-## 4. 实体拆分方法论
-
-### 方法 1：名词提取法
-
-从需求描述中提取所有**核心名词**，这些通常是潜在实体。
-
-**步骤**：
-1. 阅读需求文档，标记所有业务名词
-2. 判断名词是否需要独立存储数据
-3. 如果需要存储多个属性，则作为独立实体
-4. 如果只是一个属性值，则作为字段
-
-**示例（Meta 广告指导）**：
-- ✅ **广告账户**（核心实体）- 有多个属性（ID、名称、状态等）
-- ✅ **客户**（独立实体）- 有独立的属性（客户名称、结算主体等）
-- ✅ **指导建议**（独立实体）- 有独立的属性（类型、内容、时间等）
-- ❌ **结算主体**（字段）- 是客户的一个属性，不需要独立实体（简单场景）
-- ❌ **负责销售**（字段）- 是客户的一个属性
-- ✅ **结算主体**（独立实体）- 如果多个客户共享同一结算主体，则需要独立实体（复杂场景）
-
-**判断标准**：
-- 是否有多个属性？→ 独立实体
-- 是否会被多个实体引用？→ 独立实体
-- 是否有独立的生命周期？→ 独立实体
-- 只是一个简单值？→ 字段
-
-### 方法 2：生命周期分析法
-
-判断对象是否有独立的生命周期（创建、更新、删除）。
-
-**规则**：
-- **独立生命周期** → 独立实体
-- **依赖其他对象** → 作为关联实体或字段
-
-**示例**：
-- ✅ **广告账户** - 可以独立创建、修改、删除 → 独立实体
-- ✅ **指导建议** - 可以独立添加、修改、删除（但依赖账户存在）→ 独立实体
-- ❌ **账户状态** - 不能独立存在，只是账户的一个状态 → 字段（枚举）
-- ✅ **人员信息** - 可以独立管理（添加、删除人员）→ 独立实体
-
-### 方法 3：关系识别法
-
-识别对象之间的关系类型。
-
-**关系类型**：
-
-1. **1 对 1**：一个实体的一条记录对应另一个实体的一条记录
-   - 示例：用户 - 个人资料
-   - 实现：可以合并为一个表，或分两个表通过外键关联
-
-2. **1 对多**：一个实体的一条记录对应另一个实体的多条记录
-   - 示例：客户 - 广告账户、账户 - 指导建议
-   - 实现："多"的一方存储"一"的外键
-
-3. **多对多**：两个实体的记录可以相互对应多条
-   - 示例：广告账户 - 标签、用户 - 角色
-   - 实现：需要中间表（关联表）
-
-**判断规则**：
-- 如果是 **1 对多** 或 **多对多**，"多"的一方通常是独立实体
-- 如果是 **1 对 1**，可以考虑合并为一个实体（除非数据量大或访问频率差异大）
-
-**示例分析**：
-```
-客户 ──(1对多)──> 广告账户
-  → 一个客户可以有多个账户
-  → 账户表需要 customerId 外键
-
-广告账户 ──(1对多)──> 指导建议
-  → 一个账户可以有多条建议
-  → 建议表需要 adAccountId 外键
-
-广告账户 ──(多对多)──> 标签
-  → 一个账户可以有多个标签，一个标签可以用于多个账户
-  → 需要中间表：account_tags (adAccountId, tagId)
-```
-
-### 方法 4：领域驱动设计法（DDD）
-
-从业务领域的角度识别聚合根和实体。
-
-**核心概念**：
-- **聚合根（Aggregate Root）**：领域模型中的核心实体，对外暴露
-- **实体（Entity）**：有唯一标识的对象
-- **值对象（Value Object）**：没有唯一标识，只有属性值的对象
-
-**应用示例**：
-```
-聚合根：广告账户
-  └─ 实体：指导建议
-  └─ 实体：指标数据
-  └─ 值对象：账户配置（bid, budget, targeting）
-
-聚合根：客户
-  └─ 实体：人员信息
-  └─ 值对象：联系方式（email, phone）
-```
-
----
-
-## 5. 实体关系检查清单
-
-### 创建功能前检查
+### 6.2 快速提示词模板（简化版）
 
 ```markdown
-□ 我已经列出所有核心业务名词
-□ 我已经区分哪些是独立实体，哪些是字段
-□ 我已经明确每个实体的主键
-□ 我已经识别所有实体之间的关系（1对1/1对多/多对多）
-□ 我已经确定外键字段的位置
-□ 我已经考虑级联删除的规则
-□ 我已经列出主要的查询场景
-□ 我已经确认实体关系能支持所有查询场景
+创建功能：[功能名称]
+
+⚠️ 数据建模要求：
+1. 核心实体：[列出所有实体及其关系]
+2. 外键设计：[说明哪些表包含外键，关联到哪里]
+3. 查询场景：[列出主要的查询需求]
+
+请确保：
+- 所有实体通过外键建立关联
+- 为所有外键创建索引
+- Mock 数据包含完整的关联初始化
+- 查询接口支持 JOIN 操作
 ```
 
-### AI 生成后验证
+## 7. 常见问题与解决方案
 
-```markdown
-□ 数据库表结构包含所有实体
-□ 每个关联关系都有对应的外键
-□ 外键字段已创建索引（性能优化）
-□ TypeScript 类型定义与数据库表一致
-□ Mock 数据包含关联数据（不是孤立的硬编码数据）
-□ 详情页面能通过外键查询关联数据
-□ PRD 文档包含完整的数据模型图
-□ 数据模型图清晰展示实体关系
-```
-
----
-
-## 6. 常见问题与解决方案
-
-### 问题 1：数据孤岛
+### 问题 1：数据孤立，无法关联查询
 
 **症状**：
-- 多个功能的数据无法关联
-- 详情页面显示硬编码数据
-- 相同实体在不同表中重复存储
+- 每个页面都有数据，但数据之间没有关联
+- 详情页显示的内容是硬编码，不是根据 ID 查询的
+- 无法通过外键查询关联数据
 
 **原因**：
-- 缺少外键关联
-- 表设计时未考虑实体关系
+- 数据库表没有外键约束
+- Mock 数据是独立的硬编码数组
+- 查询接口不支持跨表关联
 
 **解决方案**：
-1. 识别共享的实体（如客户、账户）
-2. 提取为独立表
-3. 通过外键建立关联
-4. 更新查询逻辑，使用 JOIN
+1. 在数据库表中添加外键字段和约束
+2. 为外键创建索引
+3. 重构 Mock 数据，使用数据库函数
+4. 在查询接口中通过外键进行 JOIN 操作
 
-**示例**：
-```sql
--- 问题：账户和建议是独立的表，无法关联
-SELECT * FROM accounts WHERE adAccountId = '123';
-SELECT * FROM recommendations; -- 无法知道哪些属于账户123
-
--- 解决：添加外键
-ALTER TABLE recommendations ADD COLUMN adAccountId TEXT;
-ALTER TABLE recommendations ADD FOREIGN KEY (adAccountId) REFERENCES accounts(adAccountId);
-
--- 查询时关联
-SELECT a.*, r.* 
-FROM accounts a 
-LEFT JOIN recommendations r ON a.adAccountId = r.adAccountId
-WHERE a.adAccountId = '123';
-```
-
-### 问题 2：外键缺失或错误
+### 问题 2：实体拆分不合理
 
 **症状**：
-- 删除父记录后，子记录成为孤儿数据
-- 无法查询关联数据
-- 数据一致性问题
+- 应该独立的实体被合并成一个表
+- 应该作为字段的属性被拆成独立表
+- 查询时需要多次 JOIN，性能差
 
 **原因**：
-- 未定义外键约束
-- 外键指向错误的字段
+- 没有正确识别实体的独立性
+- 没有考虑实体的生命周期
+- 过度设计或设计不足
 
 **解决方案**：
-1. 为所有关联关系添加外键约束
-2. 定义级联规则（CASCADE / SET NULL / RESTRICT）
-3. 创建外键索引
+1. 使用"名词提取法"识别核心实体
+2. 使用"生命周期分析法"判断独立性
+3. 根据查询场景调整实体粒度
+4. 平衡规范化和性能
 
-**示例**：
-```sql
--- 添加外键约束
-CREATE TABLE recommendations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT NOT NULL,
-  guidanceType TEXT,
-  FOREIGN KEY (adAccountId) REFERENCES accounts(adAccountId) ON DELETE CASCADE
-);
-
--- 创建索引
-CREATE INDEX idx_recommendations_adAccountId ON recommendations(adAccountId);
-```
-
-### 问题 3：过度规范化
+### 问题 3：级联删除规则不明确
 
 **症状**：
-- 查询需要 JOIN 太多表（>5个）
-- 性能下降
-- 代码复杂度高
+- 删除父实体后，子实体变成孤立数据
+- 删除父实体时，子实体应该删除但未删除
+- 删除操作导致数据不一致
 
 **原因**：
-- 实体拆分过细
-- 每个小属性都独立成表
+- 没有定义级联删除规则
+- 级联规则选择不当
 
 **解决方案**：
-1. 合并低频访问的实体
-2. 将简单值对象作为字段存储
-3. 使用 JSON 字段存储扩展属性
-4. 适当冗余数据
+1. 明确每个关系的业务规则
+2. 强依赖关系使用 CASCADE
+3. 弱依赖关系使用 SET NULL
+4. 需要保护的关系使用 RESTRICT
 
-**示例**：
-```typescript
-// 过度规范化：账户配置独立成表
-CREATE TABLE account_configs (
-  id INTEGER PRIMARY KEY,
-  adAccountId TEXT,
-  bid REAL,
-  budget REAL,
-  FOREIGN KEY (adAccountId) REFERENCES accounts(adAccountId)
-);
-
-// 改进：配置作为字段或JSON
-CREATE TABLE accounts (
-  id INTEGER PRIMARY KEY,
-  adAccountId TEXT,
-  bid REAL,
-  budget REAL,
-  advancedConfig TEXT  -- JSON格式，存储扩展配置
-);
-```
-
-### 问题 4：多对多关系处理不当
+### 问题 4：TypeScript 类型与数据库不一致
 
 **症状**：
-- 无法表示多对多关系
-- 数据重复存储
+- 类型定义缺少外键字段
+- 类型定义与数据库字段名不匹配
+- 类型定义缺少关联实体的引用
 
 **原因**：
-- 未使用中间表
+- 先写代码后设计数据库
+- 数据库更新后未同步类型定义
 
 **解决方案**：
-- 创建关联表（中间表）
-- 存储两个实体的外键
-
-**示例**：
-```sql
--- 账户和标签是多对多关系
-
--- 账户表
-CREATE TABLE accounts (
-  adAccountId TEXT PRIMARY KEY,
-  accountName TEXT
-);
-
--- 标签表
-CREATE TABLE tags (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tagName TEXT UNIQUE
-);
-
--- 关联表（中间表）
-CREATE TABLE account_tags (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT,
-  tagId INTEGER,
-  createdAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (adAccountId) REFERENCES accounts(adAccountId) ON DELETE CASCADE,
-  FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE,
-  UNIQUE(adAccountId, tagId)  -- 防止重复关联
-);
-
-CREATE INDEX idx_account_tags_adAccountId ON account_tags(adAccountId);
-CREATE INDEX idx_account_tags_tagId ON account_tags(tagId);
-```
-
----
-
-## 7. 完整示例：Meta 广告指导功能
-
-### 业务需求
-
-管理 Meta 广告账户的指导建议，追踪客户采纳情况。
-
-### 实体识别
-
-**主实体**：
-- 客户信息 (Customer)
-- 广告账户 (AdAccount)
-
-**关联实体**：
-- 结算主体 (SettlementEntity) - 多个客户可能属于同一结算主体
-- 人员信息 (Personnel) - 客户的签约销售、负责销售
-- 广告指导建议 (Recommendation)
-- 广告指标数据 (Metric)
-
-### 实体关系图
-
-```
-SettlementEntity (结算主体)
-    └──> Customer (客户信息)
-            ├──> Personnel (人员信息) [签约销售、负责销售]
-            └──> AdAccount (广告账户)
-                    ├──> Recommendation (广告指导建议)
-                    └──> Metric (广告指标数据)
-```
-
-### 数据库表设计
-
-```sql
--- 1. 结算主体表
-CREATE TABLE IF NOT EXISTS settlement_entities (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  entityId TEXT UNIQUE NOT NULL,
-  entityName TEXT NOT NULL,
-  entityType TEXT,
-  createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now'))
-);
-
--- 2. 客户信息表
-CREATE TABLE IF NOT EXISTS customers (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  customerId TEXT UNIQUE NOT NULL,
-  customerName TEXT NOT NULL,
-  consolidatedEntity TEXT NOT NULL,
-  customerType TEXT,
-  settlementEntityId INTEGER,
-  createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (settlementEntityId) REFERENCES settlement_entities(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_customers_settlementEntityId 
-  ON customers(settlementEntityId);
-
--- 3. 人员信息表
-CREATE TABLE IF NOT EXISTS personnel (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  personnelName TEXT,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL,
-  customerId INTEGER NOT NULL,
-  createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_personnel_customerId 
-  ON personnel(customerId);
-
--- 4. 广告账户表
-CREATE TABLE IF NOT EXISTS metaadguidance_accounts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT UNIQUE NOT NULL,
-  accountInfo TEXT,
-  accountAttributes TEXT,
-  accountScore INTEGER DEFAULT 0,
-  guidanceCount INTEGER DEFAULT 0,
-  lastUpdateTime TEXT,
-  customerId INTEGER,
-  createdAt TEXT DEFAULT (datetime('now')),
-  updatedAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (customerId) REFERENCES customers(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_metaadguidance_accounts_customerId 
-  ON metaadguidance_accounts(customerId);
-
--- 5. 广告指导建议表
-CREATE TABLE IF NOT EXISTS metaadguidance_recommendations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT NOT NULL,
-  guidanceType TEXT,
-  guidanceContent TEXT,
-  accountImprovementScore INTEGER DEFAULT 0,
-  guidanceUpdateTime TEXT,
-  userBehavior TEXT,
-  createdAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_metaadguidance_recommendations_adAccountId 
-  ON metaadguidance_recommendations(adAccountId);
-
--- 6. 广告指标数据表
-CREATE TABLE IF NOT EXISTS metaadguidance_metrics (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  adAccountId TEXT NOT NULL,
-  guidanceType TEXT,
-  guidanceContent TEXT,
-  hasGuidance INTEGER DEFAULT 0,
-  userReviewed INTEGER DEFAULT 0,
-  callbackUpdateTime TEXT NOT NULL,
-  createdAt TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_metaadguidance_metrics_adAccountId 
-  ON metaadguidance_metrics(adAccountId);
-```
-
-### 查询场景
-
-**场景 1：列表页展示账户信息**
-```typescript
-// 查询账户，JOIN客户、结算主体、人员信息
-const accounts = await getAllData('metaadguidance.accounts');
-const customers = await getAllData('customers');
-const personnel = await getAllData('personnel');
-const settlements = await getAllData('settlement_entities');
-
-const result = accounts.map(account => {
-  const customer = customers.find(c => c.id === account.customerId);
-  const settlement = settlements.find(s => s.id === customer?.settlementEntityId);
-  const contractSales = personnel.find(p => 
-    p.customerId === account.customerId && p.role === 'CONTRACT_SALES'
-  );
-  const responsibleSales = personnel.find(p => 
-    p.customerId === account.customerId && p.role === 'RESPONSIBLE_SALES'
-  );
-  
-  return {
-    ...account,
-    customer,
-    settlement,
-    contractSales,
-    responsibleSales,
-  };
-});
-```
-
-**场景 2：查看账户的指导建议**
-```typescript
-// 根据 adAccountId 查询建议
-const recommendations = await findData(
-  'metaadguidance.recommendations',
-  (item) => item.adAccountId === adAccountId
-);
-```
-
-**场景 3：查看账户的指标数据**
-```typescript
-// 根据 adAccountId 查询指标
-const metrics = await findData(
-  'metaadguidance.metrics',
-  (item) => item.adAccountId === adAccountId
-);
-```
-
----
+1. 先设计数据库表结构
+2. 根据表结构生成 TypeScript 类型
+3. 包含可选的关联实体字段
+4. 定期检查类型与数据库的一致性
 
 ## 8. 最佳实践
 
-### DO ✅
+### 8.1 设计阶段
 
-- **明确实体边界**：每个实体代表一个独立的业务概念
-- **使用外键约束**：确保数据一致性
-- **创建索引**：为所有外键和常用查询字段创建索引
-- **定义级联规则**：明确父记录删除时子记录的处理方式
-- **文档化关系**：在 PRD 中清晰说明实体关系
-- **初始化关联数据**：Mock 数据要包含完整的关联关系
-- **使用 JOIN 查询**：避免 N+1 查询问题
+✅ **DO**：
+- 先完成数据建模，再开始编码
+- 绘制实体关系图（ER图）
+- 明确所有关联关系和外键
+- 考虑所有查询场景
+- 与团队讨论实体拆分方案
 
-### DON'T ❌
+❌ **DON'T**：
+- 边写代码边设计数据结构
+- 忽略实体关系，只关注单个表
+- 不考虑级联删除影响
+- 跳过数据建模流程
 
-- **不要硬编码数据**：Mock 接口返回固定数据，无视外键
-- **不要忽略外键**：表之间有关系但没有外键约束
-- **不要过度拆分**：每个小属性都独立成表
-- **不要重复存储**：相同的数据在多个表中重复
-- **不要忽略索引**：外键字段没有索引，查询性能差
-- **不要跳过文档**：数据模型没有在 PRD 中说明
+### 8.2 实现阶段
 
----
+✅ **DO**：
+- 所有关联关系使用外键约束
+- 为所有外键创建索引
+- Mock 数据包含完整的关联初始化
+- 查询接口支持 JOIN 操作
+- TypeScript 类型与数据库一致
+
+❌ **DON'T**：
+- 在 Mock 文件中硬编码数据数组
+- 详情接口返回固定的假数据
+- 忽略外键索引（影响性能）
+- 创建孤立的数据表
+
+### 8.3 验证阶段
+
+✅ **DO**：
+- 使用检查清单验证设计
+- 测试跨表关联查询
+- 验证级联删除行为
+- 检查数据完整性约束
+- 更新 PRD 文档
+
+❌ **DON'T**：
+- 跳过质量检查
+- 不测试关联查询
+- 不验证删除操作
+- 忘记更新文档
 
 ## 9. 工具与资源
 
-### 推荐工具
+### 9.1 ER图绘制工具
+- draw.io (免费)
+- Lucidchart
+- dbdiagram.io
+- PlantUML
 
-- **数据建模工具**：
-  - DbDiagram.io - 在线 ER 图工具
-  - draw.io - 通用图表工具
-  - PlantUML - 代码生成图表
+### 9.2 数据库设计工具
+- SQLite Browser
+- DBeaver
+- TablePlus
 
-- **数据库工具**：
-  - DB Browser for SQLite - SQLite 可视化工具
-  - DBeaver - 通用数据库管理工具
-
-### 参考资源
-
-- **数据库设计规范**：阅读 `database-standards.md`
-- **前端代码规范**：阅读 `frontend-standards.md`
-- **PRD 文档规范**：阅读 `prd-standards.md`
-
----
-
-## 10. 版本历史
-
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| v1.0 | 2025-01-15 | 初始版本，包含完整的数据建模规范和示例 |
+### 9.3 参考资料
+- 数据库设计范式
+- 实体关系模型（ER模型）
+- 外键约束最佳实践
+- SQLite 文档
 
 ---
 
 **最后更新**：2025-01-15  
-**维护者**：产品团队
-
+**版本**：v1.0
