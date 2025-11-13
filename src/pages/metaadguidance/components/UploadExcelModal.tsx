@@ -40,8 +40,8 @@ const UploadExcelModal: React.FC<UploadExcelModalProps> = ({
       
       reader.onload = (e) => {
         try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
+          const binaryData = e.target?.result;
+          const workbook = XLSX.read(binaryData, { type: 'binary' });
           
           // 读取第一个工作表
           const sheetName = workbook.SheetNames[0];
@@ -70,7 +70,7 @@ const UploadExcelModal: React.FC<UploadExcelModalProps> = ({
           }));
           
           // 生成表格数据
-          const data: PreviewDataRow[] = dataRows
+          const tableData: PreviewDataRow[] = dataRows
             .filter(row => row && row.length > 0) // 过滤空行
             .map((row, rowIndex) => {
               const rowData: PreviewDataRow = { key: rowIndex };
@@ -81,8 +81,8 @@ const UploadExcelModal: React.FC<UploadExcelModalProps> = ({
             });
           
           setPreviewColumns(columns);
-          setPreviewData(data);
-          message.success(`已解析 ${data.length} 条数据`);
+          setPreviewData(tableData);
+          message.success(`已解析 ${tableData.length} 条数据`);
           resolve();
         } catch (error) {
           console.error('解析失败:', error);
