@@ -46,8 +46,58 @@ export enum AccountHierarchy {
   AD_GROUP = 'AD_GROUP',           // 广告组层级
 }
 
+// 人员角色枚举
+export enum PersonnelRole {
+  CONTRACT_SALES = 'CONTRACT_SALES',       // 签约销售
+  RESPONSIBLE_SALES = 'RESPONSIBLE_SALES', // 负责销售
+}
+
+// 客户类型枚举
+export enum CustomerType {
+  BV = 'BV',   // BlueView
+  MH = 'MH',   // MadHouse
+  BMP = 'BMP', // BMP
+}
+
+// 结算主体
+export interface SettlementEntity {
+  id?: number;                      // 自增ID
+  entityId: string;                 // 结算主体唯一ID
+  entityName: string;               // 结算主体名称
+  entityType?: string;              // 结算主体类型
+  createdAt?: string;               // 创建时间
+  updatedAt?: string;               // 更新时间
+}
+
+// 客户信息
+export interface Customer {
+  id?: number;                      // 自增ID
+  customerId: string;               // 客户唯一ID
+  customerName: string;             // 客户名称
+  consolidatedEntity: string;       // 合并主体
+  customerType?: CustomerType | string; // 客户类型
+  settlementEntityId?: number;      // 结算主体ID（外键）
+  settlementEntity?: SettlementEntity; // 关联的结算主体（JOIN查询）
+  personnel?: Personnel[];          // 关联的人员列表（JOIN查询）
+  createdAt?: string;               // 创建时间
+  updatedAt?: string;               // 更新时间
+}
+
+// 人员信息
+export interface Personnel {
+  id?: number;                      // 自增ID
+  personnelName?: string;           // 人员姓名
+  email: string;                    // 邮箱
+  role: PersonnelRole | string;     // 角色（签约销售/负责销售）
+  customerId: number;               // 客户ID（外键）
+  customer?: Customer;              // 关联的客户（JOIN查询）
+  createdAt?: string;               // 创建时间
+  updatedAt?: string;               // 更新时间
+}
+
 // 广告账户指导列表项
 export interface AdAccountGuidance {
+  id?: number;                      // 自增ID
   adAccountId: string;              // 广告账户ID
   accountId?: string;                // 账户ID（Account ID）
   campaignId?: string;               // 广告系列ID（Campaign ID）
@@ -76,10 +126,16 @@ export interface AdAccountGuidance {
   optimization?: string;             // 优化（Optimization）
   conversion?: string;               // 转化（Conversion）
   attribution?: string;              // 归因（Attribution）
+  customerId?: number;              // 客户ID（外键）
+  customer?: Customer;              // 关联的客户信息（JOIN查询）
+  createdAt?: string;               // 创建时间
+  updatedAt?: string;               // 更新时间
 }
 
 // 建议回传详情
 export interface RecommendationDetail {
+  id?: number;                      // 自增ID
+  adAccountId: string;              // 广告账户ID（外键）
   link: string;                     // 链接
   guidanceType: RecommendationType | string; // 指导类型（如：MID_FLIGHT_RECOMMENDATION）
   guidanceContent: string;          // 指导内容（如：DELIVERY_ERROR）
@@ -98,10 +154,13 @@ export interface RecommendationDetail {
   creativeId?: string;               // 创意ID
   eventId?: string;                  // 事件ID
   payload?: string;                  // Payload数据
+  createdAt?: string;               // 创建时间
 }
 
 // 指标回传数据详情
 export interface MetricDetail {
+  id?: number;                      // 自增ID
+  adAccountId: string;              // 广告账户ID（外键）
   guidanceType: string;             // 指导类型（如：Unknown）
   guidanceContent: string;          // 指导内容（如：FRAGMENTATION）
   hasGuidance: boolean;              // 是否存在指导
@@ -125,6 +184,7 @@ export interface MetricDetail {
   userId?: string;                   // 用户ID
   payload?: string;                  // Payload数据
   eventType?: AccountEventType;      // 事件类型
+  createdAt?: string;               // 创建时间
 }
 
 // 列表查询参数

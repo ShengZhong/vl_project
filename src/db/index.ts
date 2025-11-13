@@ -137,6 +137,59 @@ const createTables = (): void => {
     )
   `);
 
+  // 结算主体表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settlement_entities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entityId TEXT UNIQUE NOT NULL,
+      entityName TEXT NOT NULL,
+      entityType TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // 客户信息表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customerId TEXT UNIQUE NOT NULL,
+      customerName TEXT NOT NULL,
+      consolidatedEntity TEXT NOT NULL,
+      customerType TEXT,
+      settlementEntityId INTEGER,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (settlementEntityId) REFERENCES settlement_entities(id)
+    )
+  `);
+
+  // 为 customers.settlementEntityId 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_customers_settlementEntityId 
+    ON customers(settlementEntityId)
+  `);
+
+  // 人员信息表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS personnel (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      personnelName TEXT,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      customerId INTEGER NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 为 personnel.customerId 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_personnel_customerId 
+    ON personnel(customerId)
+  `);
+
   // Meta广告指导账户表
   db.run(`
     CREATE TABLE IF NOT EXISTS metaadguidance_accounts (
@@ -167,15 +220,24 @@ const createTables = (): void => {
       optimization TEXT,
       conversion TEXT,
       attribution TEXT,
+      customerId INTEGER,
       createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now'))
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (customerId) REFERENCES customers(id)
     )
+  `);
+
+  // 为 metaadguidance_accounts.customerId 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_metaadguidance_accounts_customerId 
+    ON metaadguidance_accounts(customerId)
   `);
 
   // Meta广告指导推荐表
   db.run(`
     CREATE TABLE IF NOT EXISTS metaadguidance_recommendations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adAccountId TEXT NOT NULL,
       link TEXT,
       guidanceType TEXT,
       guidanceContent TEXT,
@@ -194,14 +256,22 @@ const createTables = (): void => {
       creativeId TEXT,
       eventId TEXT,
       payload TEXT,
-      createdAt TEXT DEFAULT (datetime('now'))
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
     )
+  `);
+
+  // 为 metaadguidance_recommendations.adAccountId 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_metaadguidance_recommendations_adAccountId 
+    ON metaadguidance_recommendations(adAccountId)
   `);
 
   // Meta广告指导指标表
   db.run(`
     CREATE TABLE IF NOT EXISTS metaadguidance_metrics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adAccountId TEXT NOT NULL,
       guidanceType TEXT,
       guidanceContent TEXT,
       hasGuidance INTEGER DEFAULT 0,
@@ -225,8 +295,15 @@ const createTables = (): void => {
       userId TEXT,
       payload TEXT,
       eventType TEXT,
-      createdAt TEXT DEFAULT (datetime('now'))
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE
     )
+  `);
+
+  // 为 metaadguidance_metrics.adAccountId 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_metaadguidance_metrics_adAccountId 
+    ON metaadguidance_metrics(adAccountId)
   `);
 
   // 个人信息表
@@ -359,6 +436,54 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
       item.createdAt || new Date().toISOString(),
       item.updatedAt || new Date().toISOString(),
     ];
+  } else if (tableName === 'settlement_entities') {
+    const item = data as any;
+    sql = `
+      INSERT INTO settlement_entities (
+        entityId, entityName, entityType, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.entityId || '',
+      item.entityName || '',
+      item.entityType || null,
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+    ];
+  } else if (tableName === 'customers') {
+    const item = data as any;
+    sql = `
+      INSERT INTO customers (
+        customerId, customerName, consolidatedEntity, customerType, settlementEntityId, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.customerId || '',
+      item.customerName || '',
+      item.consolidatedEntity || '',
+      item.customerType || null,
+      item.settlementEntityId || null,
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+    ];
+  } else if (tableName === 'personnel') {
+    const item = data as any;
+    sql = `
+      INSERT INTO personnel (
+        personnelName, email, role, customerId, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.personnelName || '',
+      item.email || '',
+      item.role || '',
+      item.customerId || 0,
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+    ];
   } else if (tableName === 'metaadguidance.accounts') {
     const item = data as any;
     sql = `
@@ -367,9 +492,9 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
         consolidatedEntity, settlementEntity, accountInfo, accountType, accountStatus,
         accountHierarchy, contractSales, responsibleSales, tags, accountAttributes,
         accountScore, guidanceCount, lastUpdateTime, bid, budget, targeting,
-        optimization, conversion, attribution, updatedAt
+        optimization, conversion, attribution, customerId, updatedAt
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     values = [
       item.adAccountId || '',
@@ -398,19 +523,21 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
       item.optimization || null,
       item.conversion || null,
       item.attribution || null,
+      item.customerId || null,
       new Date().toISOString(),
     ];
   } else if (tableName === 'metaadguidance.recommendations') {
     const item = data as any;
     sql = `
       INSERT INTO metaadguidance_recommendations (
-        link, guidanceType, guidanceContent, accountImprovementScore, metricType,
+        adAccountId, link, guidanceType, guidanceContent, accountImprovementScore, metricType,
         improveableValue, adObjectId, adLevel, metricScore, metricBenchmark,
         guidanceUpdateTime, userBehavior, accountId, campaignId, adId, creativeId, eventId, payload
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     values = [
+      item.adAccountId || '',
       item.link || '',
       item.guidanceType || '',
       item.guidanceContent || '',
@@ -434,15 +561,16 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
     const item = data as any;
     sql = `
       INSERT INTO metaadguidance_metrics (
-        guidanceType, guidanceContent, hasGuidance, userReviewed, isPushed,
+        adAccountId, guidanceType, guidanceContent, hasGuidance, userReviewed, isPushed,
         userClicked, userAdopted, adoptedAfterReach, revenueAfterAdoption,
         adoptionType, adoptionTime, lastReachTime, userLastAdoptionTime,
         userLastExecutionTime, callbackUpdateTime, accountId, campaignId,
         adId, creativeId, eventId, userId, payload, eventType
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     values = [
+      item.adAccountId || '',
       item.guidanceType || '',
       item.guidanceContent || '',
       item.hasGuidance ? 1 : 0,
@@ -777,6 +905,45 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
         ...data,
       } as T;
     };
+  } else if (tableName === 'settlement_entities') {
+    sql = 'SELECT * FROM settlement_entities';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        entityId: row[1],
+        entityName: row[2],
+        entityType: row[3],
+        createdAt: row[4],
+        updatedAt: row[5],
+      } as T;
+    };
+  } else if (tableName === 'customers') {
+    sql = 'SELECT * FROM customers';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        customerId: row[1],
+        customerName: row[2],
+        consolidatedEntity: row[3],
+        customerType: row[4],
+        settlementEntityId: row[5],
+        createdAt: row[6],
+        updatedAt: row[7],
+      } as T;
+    };
+  } else if (tableName === 'personnel') {
+    sql = 'SELECT * FROM personnel';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        personnelName: row[1],
+        email: row[2],
+        role: row[3],
+        customerId: row[4],
+        createdAt: row[5],
+        updatedAt: row[6],
+      } as T;
+    };
   } else if (tableName === 'metaadguidance.accounts') {
     sql = 'SELECT * FROM metaadguidance_accounts';
     transform = (row: any[]) => {
@@ -810,8 +977,9 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
         optimization: row[24],
         conversion: row[25],
         attribution: row[26],
-        createdAt: row[27],
-        updatedAt: row[28],
+        customerId: row[27],
+        createdAt: row[28],
+        updatedAt: row[29],
       } as T;
     };
   } else if (tableName === 'metaadguidance.recommendations') {
@@ -819,25 +987,26 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
     transform = (row: any[]) => {
       return {
         id: row[0],
-        link: row[1],
-        guidanceType: row[2],
-        guidanceContent: row[3],
-        accountImprovementScore: row[4],
-        metricType: row[5],
-        improveableValue: row[6],
-        adObjectId: row[7],
-        adLevel: row[8],
-        metricScore: row[9],
-        metricBenchmark: row[10],
-        guidanceUpdateTime: row[11],
-        userBehavior: row[12],
-        accountId: row[13],
-        campaignId: row[14],
-        adId: row[15],
-        creativeId: row[16],
-        eventId: row[17],
-        payload: row[18],
-        createdAt: row[19],
+        adAccountId: row[1],
+        link: row[2],
+        guidanceType: row[3],
+        guidanceContent: row[4],
+        accountImprovementScore: row[5],
+        metricType: row[6],
+        improveableValue: row[7],
+        adObjectId: row[8],
+        adLevel: row[9],
+        metricScore: row[10],
+        metricBenchmark: row[11],
+        guidanceUpdateTime: row[12],
+        userBehavior: row[13],
+        accountId: row[14],
+        campaignId: row[15],
+        adId: row[16],
+        creativeId: row[17],
+        eventId: row[18],
+        payload: row[19],
+        createdAt: row[20],
       } as T;
     };
   } else if (tableName === 'metaadguidance.metrics') {
@@ -845,30 +1014,31 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
     transform = (row: any[]) => {
       return {
         id: row[0],
-        guidanceType: row[1],
-        guidanceContent: row[2],
-        hasGuidance: row[3] === 1,
-        userReviewed: row[4] === 1,
-        isPushed: row[5] === 1,
-        userClicked: row[6] === 1,
-        userAdopted: row[7] === 1,
-        adoptedAfterReach: row[8] === 1,
-        revenueAfterAdoption: row[9],
-        adoptionType: row[10],
-        adoptionTime: row[11],
-        lastReachTime: row[12],
-        userLastAdoptionTime: row[13],
-        userLastExecutionTime: row[14],
-        callbackUpdateTime: row[15],
-        accountId: row[16],
-        campaignId: row[17],
-        adId: row[18],
-        creativeId: row[19],
-        eventId: row[20],
-        userId: row[21],
-        payload: row[22],
-        eventType: row[23],
-        createdAt: row[24],
+        adAccountId: row[1],
+        guidanceType: row[2],
+        guidanceContent: row[3],
+        hasGuidance: row[4] === 1,
+        userReviewed: row[5] === 1,
+        isPushed: row[6] === 1,
+        userClicked: row[7] === 1,
+        userAdopted: row[8] === 1,
+        adoptedAfterReach: row[9] === 1,
+        revenueAfterAdoption: row[10],
+        adoptionType: row[11],
+        adoptionTime: row[12],
+        lastReachTime: row[13],
+        userLastAdoptionTime: row[14],
+        userLastExecutionTime: row[15],
+        callbackUpdateTime: row[16],
+        accountId: row[17],
+        campaignId: row[18],
+        adId: row[19],
+        creativeId: row[20],
+        eventId: row[21],
+        userId: row[22],
+        payload: row[23],
+        eventType: row[24],
+        createdAt: row[25],
       } as T;
     };
   } else if (tableName === 'profiles') {

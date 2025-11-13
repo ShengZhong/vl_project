@@ -189,7 +189,315 @@
   - 账户ID已存在：提示"该账户ID已存在"
   - 保存失败：提示"保存失败，请重试"
 
-## 4. 交互流程 (Interaction Flow)
+## 4. 数据模型
+
+### 4.1 实体关系图（ERD）
+
+```
+SettlementEntity (结算主体)
+    └──(1对多)──> Customer (客户信息)
+            ├──(1对多)──> Personnel (人员信息) [签约销售、负责销售]
+            └──(1对多)──> AdAccount (广告账户)
+                    ├──(1对多)──> Recommendation (广告指导建议)
+                    └──(1对多)──> Metric (广告指标数据)
+```
+
+**实体关系说明**：
+
+1. **SettlementEntity → Customer (1对多)**
+   - 一个结算主体可以有多个客户
+   - 外键：`Customer.settlementEntityId` 引用 `SettlementEntity.id`
+   - 级联规则：删除结算主体时，关联客户的 `settlementEntityId` 设置为 NULL
+
+2. **Customer → Personnel (1对多)**
+   - 一个客户可以有多个人员（签约销售、负责销售）
+   - 外键：`Personnel.customerId` 引用 `Customer.id`
+   - 级联规则：删除客户时，级联删除所有相关人员
+
+3. **Customer → AdAccount (1对多)**
+   - 一个客户可以拥有多个广告账户
+   - 外键：`AdAccount.customerId` 引用 `Customer.id`
+   - 级联规则：删除客户时，关联账户的 `customerId` 设置为 NULL
+
+4. **AdAccount → Recommendation (1对多)**
+   - 一个广告账户可以有多条指导建议
+   - 外键：`Recommendation.adAccountId` 引用 `AdAccount.adAccountId`
+   - 级联规则：删除账户时，级联删除所有相关建议
+
+5. **AdAccount → Metric (1对多)**
+   - 一个广告账户可以有多条指标数据
+   - 外键：`Metric.adAccountId` 引用 `AdAccount.adAccountId`
+   - 级联规则：删除账户时，级联删除所有相关指标数据
+
+### 4.2 实体定义
+
+#### 4.2.1 SettlementEntity (结算主体)
+
+**描述**：记录结算主体的基本信息，一个结算主体可以服务多个客户。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `entityId`: TEXT UNIQUE NOT NULL - 结算主体唯一标识
+- `entityName`: TEXT NOT NULL - 结算主体名称
+- `entityType`: TEXT - 结算主体类型
+- `createdAt`: TEXT - 创建时间
+- `updatedAt`: TEXT - 更新时间
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "entityId": "17016",
+  "entityName": "AD Pure Limited"
+}
+```
+
+#### 4.2.2 Customer (客户信息)
+
+**描述**：记录客户的基本信息，关联到结算主体和人员信息。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `customerId`: TEXT UNIQUE NOT NULL - 客户唯一标识
+- `customerName`: TEXT NOT NULL - 客户名称
+- `consolidatedEntity`: TEXT NOT NULL - 合并主体
+- `customerType`: TEXT - 客户类型 (BV/MH/BMP)
+- `settlementEntityId`: INTEGER - 结算主体ID (外键)
+- `createdAt`: TEXT - 创建时间
+- `updatedAt`: TEXT - 更新时间
+
+**外键关系**：
+- `FOREIGN KEY (settlementEntityId) REFERENCES settlement_entities(id)`
+
+**索引**：
+- `CREATE INDEX idx_customers_settlementEntityId ON customers(settlementEntityId)`
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "customerId": "17016",
+  "customerName": "AD Pure Limited",
+  "consolidatedEntity": "天津赤影商贸有限公司",
+  "customerType": "BV",
+  "settlementEntityId": 1
+}
+```
+
+#### 4.2.3 Personnel (人员信息)
+
+**描述**：记录与客户相关的人员信息（签约销售、负责销售）。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `personnelName`: TEXT - 人员姓名
+- `email`: TEXT NOT NULL - 邮箱
+- `role`: TEXT NOT NULL - 角色 (CONTRACT_SALES/RESPONSIBLE_SALES)
+- `customerId`: INTEGER NOT NULL - 客户ID (外键)
+- `createdAt`: TEXT - 创建时间
+- `updatedAt`: TEXT - 更新时间
+
+**外键关系**：
+- `FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE`
+
+**索引**：
+- `CREATE INDEX idx_personnel_customerId ON personnel(customerId)`
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "email": "chang.zhao@bluefocus.com",
+  "role": "CONTRACT_SALES",
+  "customerId": 1
+}
+```
+
+#### 4.2.4 AdAccount (广告账户)
+
+**描述**：Meta 广告账户信息，关联到客户，包含账户的基本信息和评分。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `adAccountId`: TEXT UNIQUE NOT NULL - 广告账户ID
+- `accountInfo`: TEXT - 账户信息
+- `accountAttributes`: TEXT - 账户属性
+- `accountScore`: INTEGER - 账户评分
+- `guidanceCount`: INTEGER - 广告指导数量
+- `lastUpdateTime`: TEXT - 指导更新时间
+- `customerId`: INTEGER - 客户ID (外键)
+- `consolidatedEntity`: TEXT - 合并主体
+- `settlementEntity`: TEXT - 结算主体
+- `createdAt`: TEXT - 创建时间
+- `updatedAt`: TEXT - 更新时间
+- ...（其他字段）
+
+**外键关系**：
+- `FOREIGN KEY (customerId) REFERENCES customers(id)`
+
+**索引**：
+- `CREATE INDEX idx_metaadguidance_accounts_customerId ON metaadguidance_accounts(customerId)`
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "adAccountId": "803992072248290",
+  "accountInfo": "账户基本信息",
+  "accountScore": 85,
+  "guidanceCount": 12,
+  "customerId": 1
+}
+```
+
+#### 4.2.5 Recommendation (广告指导建议)
+
+**描述**：Meta 提供的广告指导建议，关联到广告账户。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `adAccountId`: TEXT NOT NULL - 广告账户ID (外键)
+- `guidanceType`: TEXT - 指导类型
+- `guidanceContent`: TEXT - 指导内容
+- `accountImprovementScore`: INTEGER - 账户提升分数
+- `guidanceUpdateTime`: TEXT - 指导更新时间
+- `createdAt`: TEXT - 创建时间
+- ...（其他字段）
+
+**外键关系**：
+- `FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE`
+
+**索引**：
+- `CREATE INDEX idx_metaadguidance_recommendations_adAccountId ON metaadguidance_recommendations(adAccountId)`
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "adAccountId": "803992072248290",
+  "guidanceType": "MID_FLIGHT_RECOMMENDATION",
+  "guidanceContent": "DELIVERY_ERROR",
+  "accountImprovementScore": 20
+}
+```
+
+#### 4.2.6 Metric (广告指标数据)
+
+**描述**：广告指标回传数据，记录指导的采纳和执行情况，关联到广告账户。
+
+**属性**：
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT - 自增主键
+- `adAccountId`: TEXT NOT NULL - 广告账户ID (外键)
+- `guidanceType`: TEXT - 指导类型
+- `guidanceContent`: TEXT - 指导内容
+- `hasGuidance`: INTEGER - 是否存在指导 (0/1)
+- `userReviewed`: INTEGER - 用户是否查阅 (0/1)
+- `userAdopted`: INTEGER - 用户是否采纳 (0/1)
+- `callbackUpdateTime`: TEXT - 回传更新时间
+- `createdAt`: TEXT - 创建时间
+- ...（其他字段）
+
+**外键关系**：
+- `FOREIGN KEY (adAccountId) REFERENCES metaadguidance_accounts(adAccountId) ON DELETE CASCADE`
+
+**索引**：
+- `CREATE INDEX idx_metaadguidance_metrics_adAccountId ON metaadguidance_metrics(adAccountId)`
+
+**示例数据**：
+```json
+{
+  "id": 1,
+  "adAccountId": "803992072248290",
+  "guidanceType": "Unknown",
+  "guidanceContent": "FRAGMENTATION",
+  "hasGuidance": true,
+  "userAdopted": false
+}
+```
+
+### 4.3 数据查询场景
+
+#### 场景 1：查询账户列表及关联信息
+
+**需求**：获取所有账户，并显示客户信息、结算主体、人员信息。
+
+**查询逻辑**：
+```typescript
+// 1. 获取所有账户
+const accounts = await getAllData('metaadguidance.accounts');
+
+// 2. 获取关联数据
+const customers = await getAllData('customers');
+const personnel = await getAllData('personnel');
+const settlements = await getAllData('settlement_entities');
+
+// 3. 组装数据（模拟JOIN）
+const result = accounts.map(account => {
+  const customer = customers.find(c => c.id === account.customerId);
+  const settlement = customer 
+    ? settlements.find(s => s.id === customer.settlementEntityId) 
+    : undefined;
+  const contractSales = customer 
+    ? personnel.find(p => p.customerId === customer.id && p.role === 'CONTRACT_SALES') 
+    : undefined;
+  const responsibleSales = customer 
+    ? personnel.find(p => p.customerId === customer.id && p.role === 'RESPONSIBLE_SALES') 
+    : undefined;
+
+  return {
+    ...account,
+    customer: {
+      ...customer,
+      settlementEntity: settlement,
+      contractSales: contractSales?.email,
+      responsibleSales: responsibleSales?.email,
+    },
+  };
+});
+```
+
+#### 场景 2：查询账户的指导建议
+
+**需求**：查看某个广告账户的所有指导建议。
+
+**查询逻辑**：
+```typescript
+const recommendations = await findData(
+  'metaadguidance.recommendations',
+  (item) => item.adAccountId === '803992072248290'
+);
+```
+
+#### 场景 3：查询账户的指标数据
+
+**需求**：查看某个广告账户的所有指标回传数据。
+
+**查询逻辑**：
+```typescript
+const metrics = await findData(
+  'metaadguidance.metrics',
+  (item) => item.adAccountId === '803992072248290'
+);
+```
+
+### 4.4 数据一致性保证
+
+1. **外键约束**：确保数据完整性，防止孤儿数据
+2. **级联删除**：删除父记录时，自动删除或更新子记录
+3. **唯一索引**：防止重复数据（如 `adAccountId`, `customerId`, `entityId`）
+4. **默认值**：关键字段设置默认值（如 `createdAt`, `updatedAt`）
+5. **字段索引**：为所有外键创建索引，提升查询性能
+
+### 4.5 数据模型版本历史
+
+| 版本 | 日期 | 变更内容 |
+|------|------|----------|
+| v1.0 | 2025-01-10 | 初始版本，包含基本账户结构 |
+| v2.0 | 2025-01-15 | 新增实体关系，添加 SettlementEntity、Customer、Personnel 表，建立外键关联 |
+
+---
+
+## 5. 交互流程 (Interaction Flow)
 
 ### 4.1 主流程：查看广告账户指导列表
 

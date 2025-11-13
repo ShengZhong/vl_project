@@ -13,7 +13,14 @@ import {
   addBatchData,
   findOneData,
 } from '../src/db';
-import type { AdAccountGuidance } from '../src/types/metaadguidance';
+import type {
+  AdAccountGuidance,
+  SettlementEntity,
+  Customer,
+  Personnel,
+  PersonnelRole,
+  CustomerType,
+} from '../src/types/metaadguidance';
 
 // 初始化数据（仅在表为空时）
 const initialData: AdAccountGuidance[] = [
@@ -323,6 +330,209 @@ const additionalData: AdAccountGuidance[] = [
   },
 ];
 
+// 初始化结算主体数据
+const initSettlementEntities = async (): Promise<void> => {
+  const entities = await getAllData<SettlementEntity>('settlement_entities');
+  if (entities.length > 0) return;
+
+  const settlementEntities: SettlementEntity[] = [
+    { entityId: '17016', entityName: 'AD Pure Limited' },
+    { entityId: '2741', entityName: 'madhouse-结算主体' },
+    { entityId: '14904', entityName: 'MOBIPOTATO HK LIMITED' },
+    { entityId: 'BMP001', entityName: 'BMP-结算主体' },
+  ];
+
+  await addBatchData('settlement_entities', settlementEntities);
+};
+
+// 初始化客户数据
+const initCustomers = async (): Promise<void> => {
+  const customers = await getAllData<Customer>('customers');
+  if (customers.length > 0) return;
+
+  const settlements = await getAllData<SettlementEntity>('settlement_entities');
+  const settlementMap = new Map(settlements.map(s => [s.entityName, s.id!]));
+
+  const customerData: Customer[] = [
+    {
+      customerId: '17016',
+      customerName: 'AD Pure Limited',
+      consolidatedEntity: '天津赤影商贸有限公司',
+      customerType: CustomerType.BV,
+      settlementEntityId: settlementMap.get('AD Pure Limited'),
+    },
+    {
+      customerId: '2741',
+      customerName: 'madhouse-结算主体',
+      consolidatedEntity: '湖南臻善汇能科技有限公司',
+      customerType: CustomerType.MH,
+      settlementEntityId: settlementMap.get('madhouse-结算主体'),
+    },
+    {
+      customerId: '14904',
+      customerName: 'MOBIPOTATO HK LIMITED',
+      consolidatedEntity: '苏州惟锐网络科技有限公司',
+      customerType: CustomerType.BV,
+      settlementEntityId: settlementMap.get('MOBIPOTATO HK LIMITED'),
+    },
+    {
+      customerId: 'BMP001',
+      customerName: 'BMP客户',
+      consolidatedEntity: '广州电商有限公司',
+      customerType: CustomerType.BMP,
+      settlementEntityId: settlementMap.get('BMP-结算主体'),
+    },
+  ];
+
+  await addBatchData('customers', customerData);
+};
+
+// 初始化人员数据
+const initPersonnel = async (): Promise<void> => {
+  const personnel = await getAllData<Personnel>('personnel');
+  if (personnel.length > 0) return;
+
+  const customers = await getAllData<Customer>('customers');
+  const customerMap = new Map(customers.map(c => [c.customerId, c.id!]));
+
+  const personnelData: Personnel[] = [
+    {
+      email: 'chang.zhao@bluefocus.com',
+      role: PersonnelRole.CONTRACT_SALES,
+      customerId: customerMap.get('17016')!,
+    },
+    {
+      email: 'chang.zhao@bluefocus.com',
+      role: PersonnelRole.RESPONSIBLE_SALES,
+      customerId: customerMap.get('17016')!,
+    },
+    {
+      email: 'madhouse-销售',
+      role: PersonnelRole.CONTRACT_SALES,
+      customerId: customerMap.get('2741')!,
+    },
+    {
+      email: 'madhouse-销售',
+      role: PersonnelRole.RESPONSIBLE_SALES,
+      customerId: customerMap.get('2741')!,
+    },
+    {
+      email: 'shujuan.jiang@bluefocus.com',
+      role: PersonnelRole.CONTRACT_SALES,
+      customerId: customerMap.get('14904')!,
+    },
+    {
+      email: 'shujuan.jiang@bluefocus.com',
+      role: PersonnelRole.RESPONSIBLE_SALES,
+      customerId: customerMap.get('14904')!,
+    },
+  ];
+
+  await addBatchData('personnel', personnelData);
+};
+
+// 更新账户数据，关联 customerId
+const updateAccountsWithCustomers = async (): Promise<void> => {
+  const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+  const customers = await getAllData<Customer>('customers');
+  
+  // 创建结算主体到客户的映射（简化版）
+  const settlementToCustomer = new Map<string, number>();
+  customers.forEach(c => {
+    if (c.consolidatedEntity && c.id) {
+      settlementToCustomer.set(c.consolidatedEntity, c.id);
+    }
+  });
+
+  for (const account of accounts) {
+    if (!account.customerId && account.consolidatedEntity) {
+      const customerId = settlementToCustomer.get(account.consolidatedEntity);
+      if (customerId) {
+        await updateData(
+          'metaadguidance.accounts',
+          (item: any) => item.adAccountId === account.adAccountId,
+          (item: any) => ({ ...item, customerId })
+        );
+      }
+    }
+  }
+};
+
+// 初始化推荐数据
+const initRecommendations = async (): Promise<void> => {
+  const recommendations = await getAllData('metaadguidance.recommendations');
+  if (recommendations.length > 0) return;
+
+  const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+  
+  // 为前5个账户生成推荐数据
+  for (const account of accounts.slice(0, 5)) {
+    const count = Math.floor(Math.random() * 4) + 2;
+    for (let i = 0; i < count; i++) {
+      await addData('metaadguidance.recommendations', {
+        adAccountId: account.adAccountId,
+        link: 'view',
+        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
+        guidanceContent: ['DELIVERY_ERROR', 'BUDGET_OPTIMIZATION', 'TARGETING_EXPANSION'][i % 3],
+        accountImprovementScore: Math.floor(Math.random() * 50) + 10,
+        metricType: 0,
+        improveableValue: String(Math.floor(Math.random() * 9000000000000) + 1000000000000),
+        adObjectId: 'CAMPAIGN_GROUP',
+        adLevel: 0,
+        metricScore: 0,
+        metricBenchmark: 0,
+        guidanceUpdateTime: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        userBehavior: 'PITCH',
+        accountId: account.accountId,
+        campaignId: account.campaignId,
+      });
+    }
+  }
+};
+
+// 初始化指标数据
+const initMetrics = async (): Promise<void> => {
+  const metrics = await getAllData('metaadguidance.metrics');
+  if (metrics.length > 0) return;
+
+  const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+  
+  // 为前5个账户生成指标数据
+  for (const account of accounts.slice(0, 5)) {
+    const count = Math.floor(Math.random() * 3) + 1;
+    for (let i = 0; i < count; i++) {
+      await addData('metaadguidance.metrics', {
+        adAccountId: account.adAccountId,
+        guidanceType: 'Unknown',
+        guidanceContent: ['FRAGMENTATION', 'REELS_PC_RECOMMENDATION', 'CREATIVE_LIMITED'][i % 3],
+        hasGuidance: true,
+        userReviewed: Math.random() > 0.5,
+        isPushed: true,
+        userClicked: Math.random() > 0.5,
+        userAdopted: Math.random() > 0.7,
+        adoptedAfterReach: Math.random() > 0.8,
+        revenueAfterAdoption: Math.floor(Math.random() * 10000),
+        adoptionType: Math.random() > 0.5 ? 'MANUAL' : '',
+        adoptionTime: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+        lastReachTime: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        callbackUpdateTime: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        accountId: account.accountId,
+        campaignId: account.campaignId,
+      });
+    }
+  }
+};
+
+// 初始化所有关联数据
+const initializeAllData = async (): Promise<void> => {
+  await initSettlementEntities();
+  await initCustomers();
+  await initPersonnel();
+  await updateAccountsWithCustomers();
+  await initRecommendations();
+  await initMetrics();
+};
+
 // 初始化数据
 const getAccounts = async (): Promise<AdAccountGuidance[]> => {
   const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
@@ -352,40 +562,68 @@ export default {
     try {
       const { pageNum = 1, pageSize = 20, consolidatedEntity, settlementEntity, adAccountId } = req.query;
       
+      // 初始化所有关联数据
+      await getAccounts();
+      await initializeAllData();
+      
       // 从数据库获取数据
-      let allData = await getAccounts();
+      let allData = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
       
       // 应用筛选条件
       if (consolidatedEntity) {
-        allData = await findData<AdAccountGuidance>(
-          'metaadguidance.accounts',
-          (item) => item.consolidatedEntity && item.consolidatedEntity.includes(consolidatedEntity)
+        allData = allData.filter(item => 
+          item.consolidatedEntity && item.consolidatedEntity.includes(consolidatedEntity)
         );
       }
       if (settlementEntity) {
-        allData = await findData<AdAccountGuidance>(
-          'metaadguidance.accounts',
-          (item) => item.settlementEntity && item.settlementEntity.includes(settlementEntity)
+        allData = allData.filter(item => 
+          item.settlementEntity && item.settlementEntity.includes(settlementEntity)
         );
       }
       if (adAccountId) {
-        allData = await findData<AdAccountGuidance>(
-          'metaadguidance.accounts',
-          (item) => item.adAccountId && item.adAccountId.includes(adAccountId)
+        allData = allData.filter(item => 
+          item.adAccountId && item.adAccountId.includes(adAccountId)
         );
       }
+
+      // 获取关联数据（JOIN 模拟）
+      const customers = await getAllData<Customer>('customers');
+      const personnel = await getAllData<Personnel>('personnel');
+      const settlements = await getAllData<SettlementEntity>('settlement_entities');
+
+      // 组装数据
+      const enrichedData = allData.map(account => {
+        const customer = customers.find(c => c.id === account.customerId);
+        const settlement = customer ? settlements.find(s => s.id === customer.settlementEntityId) : undefined;
+        const contractSales = customer ? personnel.find(p => 
+          p.customerId === customer.id && p.role === PersonnelRole.CONTRACT_SALES
+        ) : undefined;
+        const responsibleSales = customer ? personnel.find(p => 
+          p.customerId === customer.id && p.role === PersonnelRole.RESPONSIBLE_SALES
+        ) : undefined;
+
+        return {
+          ...account,
+          customer: customer ? {
+            ...customer,
+            settlementEntity: settlement,
+            contractSales: contractSales?.email,
+            responsibleSales: responsibleSales?.email,
+          } : undefined,
+        };
+      });
 
       // 分页
       const start = (Number(pageNum) - 1) * Number(pageSize);
       const end = start + Number(pageSize);
-      const list = allData.slice(start, end);
+      const list = enrichedData.slice(start, end);
 
       res.json({
         code: 200,
         message: '成功',
         data: {
           list,
-          total: allData.length,
+          total: enrichedData.length,
         },
       });
     } catch (error: any) {
@@ -402,148 +640,73 @@ export default {
   },
 
   // 获取广告账户建议回传详情
-  'GET /api/meta-ad-guidance/recommendation-detail': (req: any, res: any) => {
-    const mockData = [
-      {
-        link: 'view',
-        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
-        guidanceContent: 'DELIVERY_ERROR',
-        accountImprovementScore: 20,
-        metricType: 0,
-        improveableValue: '6847774845376',
-        adObjectId: 'CAMPAIGN_GROUP',
-        adLevel: 0,
-        metricScore: 0,
-        metricBenchmark: 0,
-        guidanceUpdateTime: '2025-11-09T05:43:29',
-        userBehavior: 'PITCH',
-      },
-      {
-        link: 'view',
-        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
-        guidanceContent: 'DELIVERY_ERROR',
-        accountImprovementScore: 20,
-        metricType: 0,
-        improveableValue: '6847764827976',
-        adObjectId: 'CAMPAIGN_GROUP',
-        adLevel: 0,
-        metricScore: 0,
-        metricBenchmark: 0,
-        guidanceUpdateTime: '2025-11-07T09:44:42',
-        userBehavior: 'PITCH',
-      },
-      {
-        link: 'view',
-        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
-        guidanceContent: 'DELIVERY_ERROR',
-        accountImprovementScore: 20,
-        metricType: 0,
-        improveableValue: '6847775493576',
-        adObjectId: 'CAMPAIGN_GROUP',
-        adLevel: 0,
-        metricScore: 0,
-        metricBenchmark: 0,
-        guidanceUpdateTime: '2025-11-07T09:41:57',
-        userBehavior: 'PITCH',
-      },
-      {
-        link: 'view',
-        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
-        guidanceContent: 'DELIVERY_ERROR',
-        accountImprovementScore: 20,
-        metricType: 0,
-        improveableValue: '6847775493376',
-        adObjectId: 'CAMPAIGN_GROUP',
-        adLevel: 0,
-        metricScore: 0,
-        metricBenchmark: 0,
-        guidanceUpdateTime: '2025-11-09T05:43:30',
-        userBehavior: 'PITCH',
-      },
-      {
-        link: 'view',
-        guidanceType: 'MID_FLIGHT_RECOMMENDATION',
-        guidanceContent: 'DELIVERY_ERROR',
-        accountImprovementScore: 20,
-        metricType: 0,
-        improveableValue: '6847775494176',
-        adObjectId: 'CAMPAIGN_GROUP',
-        adLevel: 0,
-        metricScore: 0,
-        metricBenchmark: 0,
-        guidanceUpdateTime: '2025-11-09T05:43:35',
-        userBehavior: 'PITCH',
-      },
-    ];
+  'GET /api/meta-ad-guidance/recommendation-detail': async (req: any, res: any) => {
+    try {
+      const { adAccountId } = req.query;
 
-    res.json({
-      code: 200,
-      message: '成功',
-      data: mockData,
-    });
+      if (!adAccountId) {
+        res.json({
+          code: 400,
+          message: '缺少广告账户ID参数',
+          data: [],
+        });
+        return;
+      }
+
+      // 从数据库查询该账户的建议回传数据
+      const recommendations = await findData(
+        'metaadguidance.recommendations',
+        (item: any) => item.adAccountId === adAccountId
+      );
+
+      res.json({
+        code: 200,
+        message: '成功',
+        data: recommendations,
+      });
+    } catch (error: any) {
+      console.error('获取建议回传详情失败:', error);
+      res.json({
+        code: 500,
+        message: error.message || '获取详情失败',
+        data: [],
+      });
+    }
   },
 
   // 获取广告指标回传数据详情
-  'GET /api/meta-ad-guidance/metric-detail': (req: any, res: any) => {
-    const mockData = [
-      {
-        guidanceType: 'Unknown',
-        guidanceContent: 'FRAGMENTATION',
-        hasGuidance: true,
-        userReviewed: true,
-        isPushed: true,
-        userClicked: false,
-        userAdopted: false,
-        adoptedAfterReach: false,
-        revenueAfterAdoption: 0,
-        adoptionType: '',
-        adoptionTime: '2025-02-25T00:00:00',
-        lastReachTime: '2025-11-10T00:00:00',
-        userLastAdoptionTime: '2025-11-09T00:00:00',
-        userLastExecutionTime: '2025-11-08T00:00:00',
-        callbackUpdateTime: '2025-11-06T00:00:00',
-      },
-      {
-        guidanceType: 'Unknown',
-        guidanceContent: 'REELS_PC_RECOMMENDATION',
-        hasGuidance: true,
-        userReviewed: true,
-        isPushed: true,
-        userClicked: false,
-        userAdopted: false,
-        adoptedAfterReach: false,
-        revenueAfterAdoption: 0,
-        adoptionType: '',
-        adoptionTime: '',
-        lastReachTime: '2025-11-10T00:00:00',
-        userLastAdoptionTime: '',
-        userLastExecutionTime: '',
-        callbackUpdateTime: '2025-11-06T00:00:00',
-      },
-      {
-        guidanceType: 'Unknown',
-        guidanceContent: 'CREATIVE_LIMITED',
-        hasGuidance: true,
-        userReviewed: true,
-        isPushed: true,
-        userClicked: false,
-        userAdopted: false,
-        adoptedAfterReach: false,
-        revenueAfterAdoption: 0,
-        adoptionType: '',
-        adoptionTime: '',
-        lastReachTime: '2025-11-10T00:00:00',
-        userLastAdoptionTime: '',
-        userLastExecutionTime: '',
-        callbackUpdateTime: '2025-11-06T00:00:00',
-      },
-    ];
+  'GET /api/meta-ad-guidance/metric-detail': async (req: any, res: any) => {
+    try {
+      const { adAccountId } = req.query;
 
-    res.json({
-      code: 200,
-      message: '成功',
-      data: mockData,
-    });
+      if (!adAccountId) {
+        res.json({
+          code: 400,
+          message: '缺少广告账户ID参数',
+          data: [],
+        });
+        return;
+      }
+
+      // 从数据库查询该账户的指标回传数据
+      const metrics = await findData(
+        'metaadguidance.metrics',
+        (item: any) => item.adAccountId === adAccountId
+      );
+
+      res.json({
+        code: 200,
+        message: '成功',
+        data: metrics,
+      });
+    } catch (error: any) {
+      console.error('获取指标回传详情失败:', error);
+      res.json({
+        code: 500,
+        message: error.message || '获取详情失败',
+        data: [],
+      });
+    }
   },
 
   // 下载Excel模板
