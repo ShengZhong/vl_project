@@ -52,7 +52,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ onExecuteAction }) => {
   const [actionSteps, setActionSteps] = useState<ActionStep[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [userConfirmed, setUserConfirmed] = useState(false);
+  const [inputHeight, setInputHeight] = useState(80); // 输入框高度
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -64,6 +67,45 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ onExecuteAction }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, actionSteps, showConfirmation]);
+
+  // 拖拽调整输入框高度
+  useEffect(() => {
+    const resizeHandle = resizeHandleRef.current;
+    if (!resizeHandle) return;
+
+    let startY = 0;
+    let startHeight = 0;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      startY = e.clientY;
+      startHeight = inputHeight;
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = startY - e.clientY; // 向上拖动为正
+      const newHeight = Math.min(Math.max(startHeight + delta, 80), 400); // 最小80px，最大400px
+      setInputHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    resizeHandle.addEventListener('mousedown', handleMouseDown);
+
+    return () => {
+      resizeHandle.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [inputHeight]);
 
   // 模拟意图理解和操作步骤生成
   const parseUserIntent = async (userInput: string): Promise<ActionStep[]> => {
@@ -342,30 +384,39 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ onExecuteAction }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="input-container">
-              <TextArea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onPressEnter={(e) => {
-                  if (!e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="输入您的需求...（Shift+Enter 换行）"
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                disabled={loading || showConfirmation}
-              />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSend}
-                loading={loading}
-                disabled={loading || showConfirmation}
-                style={{ flexShrink: 0 }}
-              >
-                发送
-              </Button>
+            <div 
+              className="input-container" 
+              ref={inputContainerRef}
+              style={{ height: inputHeight }}
+            >
+              <div className="resize-handle" ref={resizeHandleRef}>
+                <div className="resize-handle-bar" />
+              </div>
+              <div className="input-wrapper">
+                <TextArea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onPressEnter={(e) => {
+                    if (!e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="输入您的需求...（Shift+Enter 换行）"
+                  disabled={loading || showConfirmation}
+                  style={{ height: inputHeight - 48, resize: 'none' }}
+                />
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleSend}
+                  loading={loading}
+                  disabled={loading || showConfirmation}
+                  style={{ flexShrink: 0 }}
+                >
+                  发送
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
