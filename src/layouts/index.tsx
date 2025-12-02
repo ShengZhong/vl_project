@@ -71,6 +71,7 @@ const BasicLayout: React.FC = ({ children }) => {
     '/metaadguidance/list': ['首页', '工具类', 'Meta广告指导'],
     '/metaadguidance/recommendation-detail': ['首页', '工具类', 'Meta广告指导', '建议回传详情'],
     '/metaadguidance/metric-detail': ['首页', '工具类', 'Meta广告指导', '指标回传详情'],
+    '/tools/database': ['首页', '工具类', '数据库管理'],
     '/adguidance/overview': ['首页', 'VL广告指导建议', '概览'],
     '/adguidance/recommendations': ['首页', 'VL广告指导建议', '优化建议'],
     '/adguidance/accounts': ['首页', 'VL广告指导建议', '账户管理'],
@@ -353,6 +354,11 @@ const BasicLayout: React.FC = ({ children }) => {
         {
           key: '/metaadguidance/list',
           label: <Link to="/metaadguidance/list">{intl.formatMessage({ id: 'menu.metaadguidance', defaultMessage: 'Meta广告指导' })}</Link>,
+        },
+        {
+          key: '/tools/database',
+          icon: <HddOutlined />,
+          label: <Link to="/tools/database">数据库管理</Link>,
         },
         {
           key: '/tools/pending',
