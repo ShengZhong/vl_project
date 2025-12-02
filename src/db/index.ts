@@ -88,6 +88,8 @@ const initDatabase = async (): Promise<void> => {
     // 创建或加载数据库
     if (dbData) {
       db = new SQL.Database(dbData);
+      // 运行数据迁移
+      runMigrations();
     } else {
       db = new SQL.Database();
       // 创建表结构
@@ -326,7 +328,184 @@ const createTables = (): void => {
     )
   `);
 
+  // ===== VL广告指导建议系统表结构 (功能点ID: VL-ADGD-001) =====
+
+  // 广告平台表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ad_platforms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platformCode TEXT UNIQUE NOT NULL,
+      platformName TEXT NOT NULL,
+      platformIcon TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // 插入初始平台数据
+  db.run(`
+    INSERT OR IGNORE INTO ad_platforms (platformCode, platformName) VALUES 
+      ('META', 'Meta Ads'),
+      ('GOOGLE', 'Google Ads'),
+      ('TIKTOK', 'TikTok Ads')
+  `);
+
+  // 更新已存在的平台名称（数据迁移）
+  db.run(`
+    UPDATE ad_platforms 
+    SET platformName = 'Meta Ads'
+    WHERE platformCode = 'META' AND platformName != 'Meta Ads'
+  `);
+
+  // 广告指导客户信息表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS adguidance_customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customerName TEXT NOT NULL,
+      industry TEXT,
+      customerLevel TEXT DEFAULT 'NORMAL',
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // 广告账户表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS ad_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      accountId TEXT UNIQUE NOT NULL,
+      accountName TEXT,
+      opportunityScore INTEGER DEFAULT 0,
+      accountBalance REAL DEFAULT 0,
+      totalSpend REAL DEFAULT 0,
+      status TEXT DEFAULT 'ACTIVE',
+      platformId INTEGER NOT NULL,
+      customerId INTEGER,
+      expiryDate TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (platformId) REFERENCES ad_platforms(id) ON DELETE RESTRICT,
+      FOREIGN KEY (customerId) REFERENCES adguidance_customers(id) ON DELETE SET NULL
+    )
+  `);
+
+  // 为广告账户表创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ad_accounts_platformId 
+    ON ad_accounts(platformId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ad_accounts_customerId 
+    ON ad_accounts(customerId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_ad_accounts_opportunityScore 
+    ON ad_accounts(opportunityScore)
+  `);
+
+  // 建议分类表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS recommendation_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      categoryCode TEXT UNIQUE NOT NULL,
+      categoryName TEXT NOT NULL,
+      categoryColor TEXT,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  // 插入初始分类数据
+  db.run(`
+    INSERT OR IGNORE INTO recommendation_categories (categoryCode, categoryName, categoryColor) VALUES 
+      ('BUDGET', '预算', 'green'),
+      ('CREATIVE', '创意', 'purple'),
+      ('AUDIENCE', '受众', 'blue'),
+      ('AUTO', '自动化', 'orange')
+  `);
+
+  // 优化建议表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS recommendations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      impactScore INTEGER DEFAULT 0,
+      affectedAdCount INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'PENDING',
+      priority TEXT DEFAULT 'MEDIUM',
+      accountId INTEGER NOT NULL,
+      categoryId INTEGER NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      updatedAt TEXT DEFAULT (datetime('now')),
+      reviewedAt TEXT,
+      FOREIGN KEY (accountId) REFERENCES ad_accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (categoryId) REFERENCES recommendation_categories(id) ON DELETE RESTRICT
+    )
+  `);
+
+  // 为优化建议表创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_recommendations_accountId 
+    ON recommendations(accountId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_recommendations_categoryId 
+    ON recommendations(categoryId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_recommendations_status 
+    ON recommendations(status)
+  `);
+
+  // 账户指标表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS account_metrics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metricDate TEXT NOT NULL,
+      cpa REAL,
+      roas REAL,
+      conversionRate REAL,
+      dailySpend REAL,
+      accountId INTEGER NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (accountId) REFERENCES ad_accounts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 为账户指标表创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_account_metrics_accountId 
+    ON account_metrics(accountId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_account_metrics_metricDate 
+    ON account_metrics(metricDate)
+  `);
+
   saveDatabase();
+};
+
+/**
+ * 运行数据库迁移
+ * 用于更新已存在的数据库结构和数据
+ */
+const runMigrations = (): void => {
+  if (!db) return;
+
+  try {
+    // 迁移1: 更新 Meta 平台名称从 "Meta (Facebook & Instagram)" 到 "Meta Ads"
+    db.run(`
+      UPDATE ad_platforms 
+      SET platformName = 'Meta Ads', updatedAt = datetime('now')
+      WHERE platformCode = 'META' AND platformName != 'Meta Ads'
+    `);
+
+    console.log('数据库迁移完成');
+    saveDatabase();
+  } catch (error) {
+    console.error('数据库迁移失败:', error);
+  }
 };
 
 /**
@@ -617,6 +796,82 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
       serialize(item),
       item.createdAt || new Date().toISOString(),
       item.updatedAt || new Date().toISOString(),
+    ];
+  } else if (tableName === 'adguidance_customers') {
+    const item = data as any;
+    sql = `
+      INSERT INTO adguidance_customers (
+        customerName, industry, customerLevel, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.customerName || '',
+      item.industry || null,
+      item.customerLevel || 'NORMAL',
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+    ];
+  } else if (tableName === 'ad_accounts') {
+    const item = data as any;
+    sql = `
+      INSERT INTO ad_accounts (
+        accountId, accountName, opportunityScore, accountBalance, totalSpend,
+        status, platformId, customerId, expiryDate, createdAt, updatedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.accountId || '',
+      item.accountName || null,
+      item.opportunityScore || 0,
+      item.accountBalance || 0,
+      item.totalSpend || 0,
+      item.status || 'ACTIVE',
+      item.platformId || 0,
+      item.customerId || null,
+      item.expiryDate || null,
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+    ];
+  } else if (tableName === 'recommendations') {
+    const item = data as any;
+    sql = `
+      INSERT INTO recommendations (
+        title, description, impactScore, affectedAdCount, status, priority,
+        accountId, categoryId, createdAt, updatedAt, reviewedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.title || '',
+      item.description || '',
+      item.impactScore || 0,
+      item.affectedAdCount || 0,
+      item.status || 'PENDING',
+      item.priority || 'MEDIUM',
+      item.accountId || 0,
+      item.categoryId || 0,
+      item.createdAt || new Date().toISOString(),
+      item.updatedAt || new Date().toISOString(),
+      item.reviewedAt || null,
+    ];
+  } else if (tableName === 'account_metrics') {
+    const item = data as any;
+    sql = `
+      INSERT INTO account_metrics (
+        metricDate, cpa, roas, conversionRate, dailySpend, accountId, createdAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    values = [
+      item.metricDate || new Date().toISOString().split('T')[0],
+      item.cpa || null,
+      item.roas || null,
+      item.conversionRate || null,
+      item.dailySpend || null,
+      item.accountId || 0,
+      item.createdAt || new Date().toISOString(),
     ];
   } else {
     throw new Error(`不支持的表名: ${tableName}`);
@@ -1062,6 +1317,92 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
         ...data,
       } as T;
     };
+  } else if (tableName === 'ad_platforms') {
+    sql = 'SELECT * FROM ad_platforms';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        platformCode: row[1],
+        platformName: row[2],
+        platformIcon: row[3],
+        createdAt: row[4],
+        updatedAt: row[5],
+      } as T;
+    };
+  } else if (tableName === 'adguidance_customers') {
+    sql = 'SELECT * FROM adguidance_customers';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        customerName: row[1],
+        industry: row[2],
+        customerLevel: row[3],
+        createdAt: row[4],
+        updatedAt: row[5],
+      } as T;
+    };
+  } else if (tableName === 'ad_accounts') {
+    sql = 'SELECT * FROM ad_accounts';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        accountId: row[1],
+        accountName: row[2],
+        opportunityScore: row[3],
+        accountBalance: row[4],
+        totalSpend: row[5],
+        status: row[6],
+        platformId: row[7],
+        customerId: row[8],
+        expiryDate: row[9],
+        createdAt: row[10],
+        updatedAt: row[11],
+      } as T;
+    };
+  } else if (tableName === 'recommendation_categories') {
+    sql = 'SELECT * FROM recommendation_categories';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        categoryCode: row[1],
+        categoryName: row[2],
+        categoryColor: row[3],
+        createdAt: row[4],
+        updatedAt: row[5],
+      } as T;
+    };
+  } else if (tableName === 'recommendations') {
+    sql = 'SELECT * FROM recommendations';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        title: row[1],
+        description: row[2],
+        impactScore: row[3],
+        affectedAdCount: row[4],
+        status: row[5],
+        priority: row[6],
+        accountId: row[7],
+        categoryId: row[8],
+        createdAt: row[9],
+        updatedAt: row[10],
+        reviewedAt: row[11],
+      } as T;
+    };
+  } else if (tableName === 'account_metrics') {
+    sql = 'SELECT * FROM account_metrics';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        metricDate: row[1],
+        cpa: row[2],
+        roas: row[3],
+        conversionRate: row[4],
+        dailySpend: row[5],
+        accountId: row[6],
+        createdAt: row[7],
+      } as T;
+    };
   } else {
     throw new Error(`不支持的表名: ${tableName}`);
   }
@@ -1261,6 +1602,153 @@ if (typeof window !== 'undefined') {
   // Mock 文件会在需要时调用 ensureInitialized
 }
 
+/**
+ * ===== 数据库管理工具函数 (功能点ID: VL-TOOL-001) =====
+ */
+
+/**
+ * 获取数据库中所有表名
+ * @returns 表名列表
+ */
+export const getAllTableNames = async (): Promise<string[]> => {
+  await ensureInitialized();
+  if (!db) throw new Error('数据库未初始化');
+
+  const result = db.exec(`
+    SELECT name FROM sqlite_master 
+    WHERE type='table' AND name NOT LIKE 'sqlite_%'
+    ORDER BY name
+  `);
+
+  if (result.length === 0) return [];
+  return result[0].values.map(row => row[0] as string);
+};
+
+/**
+ * 获取指定表的结构信息
+ * @param tableName 表名
+ * @returns 表结构信息
+ */
+export const getTableStructure = async (tableName: string): Promise<any[]> => {
+  await ensureInitialized();
+  if (!db) throw new Error('数据库未初始化');
+
+  try {
+    const result = db.exec(`PRAGMA table_info(${tableName})`);
+    
+    if (result.length === 0) return [];
+    
+    return result[0].values.map(row => ({
+      cid: row[0] as number,
+      name: row[1] as string,
+      type: row[2] as string,
+      notNull: row[3] === 1,
+      defaultValue: row[4],
+      primaryKey: row[5] === 1,
+    }));
+  } catch (error) {
+    console.error(`获取表结构失败: ${tableName}`, error);
+    return [];
+  }
+};
+
+/**
+ * 获取数据库中所有外键关系
+ * @returns 外键关系列表
+ */
+export const getAllTableRelationships = async (): Promise<any[]> => {
+  await ensureInitialized();
+  if (!db) throw new Error('数据库未初始化');
+
+  const tables = await getAllTableNames();
+  const relationships: any[] = [];
+
+  for (const table of tables) {
+    try {
+      const result = db.exec(`PRAGMA foreign_key_list(${table})`);
+      
+      if (result.length > 0) {
+        result[0].values.forEach(row => {
+          relationships.push({
+            childTable: table,
+            childColumn: row[3] as string,
+            parentTable: row[2] as string,
+            parentColumn: row[4] as string,
+            onDelete: row[6] as string || 'NO ACTION',
+            onUpdate: row[5] as string || 'NO ACTION',
+          });
+        });
+      }
+    } catch (error) {
+      console.error(`获取表外键失败: ${table}`, error);
+    }
+  }
+
+  return relationships;
+};
+
+/**
+ * 执行自定义SQL查询
+ * @param sql SQL语句
+ * @returns 查询结果
+ */
+export const executeSQLQuery = async (sql: string): Promise<any> => {
+  await ensureInitialized();
+  if (!db) throw new Error('数据库未初始化');
+
+  const startTime = Date.now();
+  
+  try {
+    // 检查危险操作
+    const dangerousKeywords = ['DROP', 'ALTER', 'TRUNCATE'];
+    const sqlUpper = sql.trim().toUpperCase();
+    
+    for (const keyword of dangerousKeywords) {
+      if (sqlUpper.startsWith(keyword)) {
+        throw new Error(`禁止执行 ${keyword} 操作，请通过代码修改数据库结构`);
+      }
+    }
+
+    // 检查修改操作（需要特别提示）
+    const modifyKeywords = ['UPDATE', 'DELETE', 'INSERT'];
+    let isModifyOperation = false;
+    for (const keyword of modifyKeywords) {
+      if (sqlUpper.startsWith(keyword)) {
+        isModifyOperation = true;
+        break;
+      }
+    }
+
+    const result = db.exec(sql);
+    const executionTime = Date.now() - startTime;
+
+    // 如果是修改操作，保存数据库
+    if (isModifyOperation) {
+      saveDatabase();
+    }
+
+    if (result.length === 0) {
+      return {
+        columns: [],
+        values: [],
+        rowCount: 0,
+        executionTime,
+        isModifyOperation,
+      };
+    }
+
+    return {
+      columns: result[0].columns,
+      values: result[0].values,
+      rowCount: result[0].values.length,
+      executionTime,
+      isModifyOperation,
+    };
+  } catch (error: any) {
+    throw new Error(`SQL执行失败: ${error.message}`);
+  }
+};
+
 export default {
   getDB,
   getTable,
@@ -1279,4 +1767,9 @@ export default {
   importDB,
   resetDB,
   getDBStats,
+  // 数据库管理工具函数
+  getAllTableNames,
+  getTableStructure,
+  getAllTableRelationships,
+  executeSQLQuery,
 };

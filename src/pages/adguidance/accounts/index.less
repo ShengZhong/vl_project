@@ -1,0 +1,82 @@
+.ad-account-management-page {
+  padding: 0;
+  background: transparent;
+
+  .title-desc {
+    font-size: 14px;
+    font-weight: normal;
+    color: #8c8c8c;
+    margin-left: 8px;
+  }
+
+  .platform-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+    .platform-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .platform-name {
+        font-size: 16px;
+        font-weight: 600;
+      }
+    }
+
+    .platform-stats {
+      display: flex;
+      gap: 8px;
+    }
+  }
+
+  .platform-actions {
+    display: flex;
+    gap: 16px;
+  }
+
+  :global {
+    .ant-collapse {
+      background: transparent;
+      border: none;
+
+      .ant-collapse-item {
+        margin-bottom: 16px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #d9d9d9;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .ant-collapse-header {
+        background: #fafafa;
+        padding: 16px 24px;
+      }
+
+      .ant-collapse-content {
+        background: #fff;
+        border-top: 1px solid #f0f0f0;
+      }
+
+      .ant-collapse-content-box {
+        padding: 24px;
+      }
+    }
+
+    .ant-card {
+      border-radius: 8px;
+      transition: all 0.3s;
+
+      &.ant-card-hoverable:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+      }
+    }
+  }
+}
+

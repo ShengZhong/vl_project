@@ -1,0 +1,201 @@
+.copilot-trigger {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.copilot-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 100px;
+  width: 380px;
+  height: 600px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: bottom right;
+  animation: panelSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .copilot-header {
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f1f1f;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close-btn {
+      color: #8c8c8c;
+      cursor: pointer;
+      padding: 4px;
+      
+      &:hover {
+        color: #595959;
+      }
+    }
+  }
+
+  .copilot-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: #fafafa;
+
+    .message {
+      display: flex;
+      gap: 12px;
+      max-width: 90%;
+
+      &.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+
+        .bubble {
+          background: #1890ff;
+          color: #fff;
+          border-radius: 12px 12px 0 12px;
+        }
+      }
+
+      &.bot {
+        align-self: flex-start;
+
+        .bubble {
+          background: #fff;
+          color: #1f1f1f;
+          border: 1px solid #f0f0f0;
+          border-radius: 12px 12px 12px 0;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        }
+      }
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      
+      .bot-avatar {
+        background: #e6f7ff;
+        color: #1890ff;
+      }
+
+      .user-avatar {
+        background: #1890ff;
+        color: #fff;
+      }
+
+      .bubble {
+        padding: 10px 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .action-card {
+        margin-top: 8px;
+        background: #f6ffed;
+        border: 1px solid #b7eb8f;
+        border-radius: 8px;
+        padding: 12px;
+        
+        .action-title {
+          font-weight: 600;
+          color: #389e0d;
+          margin-bottom: 8px;
+          font-size: 12px;
+        }
+
+        .action-steps {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          
+          li {
+            font-size: 13px;
+            color: #595959;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: flex-start;
+            
+            &::before {
+              content: '•';
+              margin-right: 6px;
+              color: #389e0d;
+            }
+          }
+        }
+
+        .action-btns {
+          margin-top: 12px;
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+      }
+    }
+  }
+
+  .copilot-input {
+    padding: 16px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 12px;
+
+    .send-btn {
+      height: auto;
+    }
+  }
+}
+
+@keyframes panelSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+

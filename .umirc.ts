@@ -4,6 +4,13 @@ export default defineConfig({
   nodeModulesTransform: {
     type: 'none',
   },
+  locale: {
+    default: 'zh-CN',
+    antd: true,
+    title: false,
+    baseNavigator: true,
+    baseSeparator: '-',
+  },
   routes: [
     {
       path: '/',
@@ -31,9 +38,15 @@ export default defineConfig({
         { path: '/brand/pending', component: '@/pages/brand/pending/index' },
         { path: '/knowledge/pending', component: '@/pages/knowledge/pending/index' },
         { path: '/tools/pending', component: '@/pages/tools/pending/index' },
+        { path: '/tools/database', component: '@/pages/tools/database/index' },
         { path: '/metaadguidance/list', component: '@/pages/metaadguidance/list/index' },
         { path: '/metaadguidance/recommendation-detail', component: '@/pages/metaadguidance/recommendation-detail/index' },
         { path: '/metaadguidance/metric-detail', component: '@/pages/metaadguidance/metric-detail/index' },
+        
+        // VL广告指导建议路由 (功能点ID: VL-ADGD-001)
+        { path: '/adguidance/overview', component: '@/pages/adguidance/overview/index' },
+        { path: '/adguidance/recommendations', component: '@/pages/adguidance/recommendations/index' },
+        { path: '/adguidance/accounts', component: '@/pages/adguidance/accounts/index' },
         { path: '/permission/pending', component: '@/pages/permission/pending/index' },
         { path: '/monitor/pending', component: '@/pages/monitor/pending/index' },
         { path: '/blueaff/pending', component: '@/pages/blueaff/pending/index' },
@@ -62,10 +75,12 @@ export default defineConfig({
   dva: {
     hmr: true,
   },
+  mock: {
+    exclude: [],
+  },
   title: 'VisionLine 产品原型平台',
   devServer: {
     port: 8000,
     host: '0.0.0.0',
   },
 });
-

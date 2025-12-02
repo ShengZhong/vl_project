@@ -36,18 +36,23 @@ import {
   EyeOutlined,
   CloudServerOutlined,
   FolderOutlined,
+  GlobalOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
-import { history, Link } from 'umi';
+import { history, Link, setLocale, getLocale, useIntl } from 'umi';
 // import ProfileModal from '@/pages/user/profile/ProfileModal';
 // import PasswordModal from '@/pages/user/profile/PasswordModal';
+import AIAssistant from '@/components/AIAssistant';
 import './index.less';
 
 const { Header, Sider, Content } = Layout;
 
 const BasicLayout: React.FC = ({ children }) => {
+  const intl = useIntl();
   const [collapsed, setCollapsed] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const currentLocale = getLocale();
 
   // 面包屑路由映射
   const breadcrumbNameMap: Record<string, string[]> = {
@@ -66,6 +71,9 @@ const BasicLayout: React.FC = ({ children }) => {
     '/metaadguidance/list': ['首页', '工具类', 'Meta广告指导'],
     '/metaadguidance/recommendation-detail': ['首页', '工具类', 'Meta广告指导', '建议回传详情'],
     '/metaadguidance/metric-detail': ['首页', '工具类', 'Meta广告指导', '指标回传详情'],
+    '/adguidance/overview': ['首页', 'VL广告指导建议', '概览'],
+    '/adguidance/recommendations': ['首页', 'VL广告指导建议', '优化建议'],
+    '/adguidance/accounts': ['首页', 'VL广告指导建议', '账户管理'],
   };
 
   // 获取当前路径的面包屑
@@ -340,15 +348,38 @@ const BasicLayout: React.FC = ({ children }) => {
     {
       key: 'tools',
       icon: <ApiOutlined />,
-      label: '工具类',
+      label: intl.formatMessage({ id: 'menu.tools', defaultMessage: '工具类' }),
       children: [
         {
           key: '/metaadguidance/list',
-          label: <Link to="/metaadguidance/list">Meta广告指导</Link>,
+          label: <Link to="/metaadguidance/list">{intl.formatMessage({ id: 'menu.metaadguidance', defaultMessage: 'Meta广告指导' })}</Link>,
         },
         {
           key: '/tools/pending',
           label: <Link to="/tools/pending">待补充功能</Link>,
+        },
+      ],
+    },
+    // VL广告指导建议 (功能点ID: VL-ADGD-001)
+    {
+      key: 'adguidance',
+      icon: <GlobalOutlined />,
+      label: 'VL广告指导建议',
+      children: [
+        {
+          key: '/adguidance/overview',
+          icon: <DashboardOutlined />,
+          label: <Link to="/adguidance/overview">概览</Link>,
+        },
+        {
+          key: '/adguidance/recommendations',
+          icon: <BulbOutlined />,
+          label: <Link to="/adguidance/recommendations">优化建议</Link>,
+        },
+        {
+          key: '/adguidance/accounts',
+          icon: <UserOutlined />,
+          label: <Link to="/adguidance/accounts">账户管理</Link>,
         },
       ],
     },
@@ -412,6 +443,12 @@ const BasicLayout: React.FC = ({ children }) => {
       case 'password':
         setPasswordModalVisible(true);
         break;
+      case 'lang-cn':
+        setLocale('zh-CN', true);
+        break;
+      case 'lang-en':
+        setLocale('en-US', true);
+        break;
       case 'logout':
         Modal.confirm({
           title: '确认退出',
@@ -434,13 +471,18 @@ const BasicLayout: React.FC = ({ children }) => {
 
   // 用户菜单
   const userMenu = (
-    <Menu onClick={({ key }) => handleUserMenuClick(key)}>
+    <Menu onClick={({ key }) => handleUserMenuClick(key as string)}>
       <Menu.Item key="profile" icon={<UserOutlined />}>
         个人信息
       </Menu.Item>
       <Menu.Item key="password" icon={<KeyOutlined />}>
         修改密码
       </Menu.Item>
+      <Menu.Divider />
+      <Menu.SubMenu key="language" icon={<GlobalOutlined />} title={currentLocale === 'zh-CN' ? '语言 (中文)' : 'Language (English)'}>
+        <Menu.Item key="lang-cn">中文</Menu.Item>
+        <Menu.Item key="lang-en">English</Menu.Item>
+      </Menu.SubMenu>
       <Menu.Divider />
       <Menu.Item key="logout" icon={<LogoutOutlined />}>
         退出登录
@@ -449,18 +491,26 @@ const BasicLayout: React.FC = ({ children }) => {
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
       {/* 左侧菜单 */}
-      <Sider trigger={null} collapsible collapsed={collapsed} width={200}>
+      <Sider 
+        trigger={null} 
+        collapsible 
+        collapsed={collapsed} 
+        width={200}
+        className="custom-sider"
+      >
         <div className="logo">
           <h1>{collapsed ? 'VL' : 'VisionLine'}</h1>
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[history.location.pathname]}
-          items={menuItems}
-        />
+        <div className="menu-wrapper">
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[history.location.pathname]}
+            items={menuItems}
+          />
+        </div>
       </Sider>
 
       <Layout className="site-layout">
@@ -491,11 +541,14 @@ const BasicLayout: React.FC = ({ children }) => {
           </Breadcrumb>
         </div>
 
-        {/* 主内容区 */}
+        {/* 主内容区 - 可滚动 */}
         <Content className="site-layout-content">
           {children}
         </Content>
       </Layout>
+
+      {/* AI 助手 */}
+      <AIAssistant />
 
       {/* 个人信息弹框 */}
       {/* {profileModalVisible && (
@@ -517,4 +570,3 @@ const BasicLayout: React.FC = ({ children }) => {
 };
 
 export default BasicLayout;
-

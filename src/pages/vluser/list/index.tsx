@@ -69,16 +69,33 @@ const VLUserList: React.FC = () => {
         ...params,
       };
 
+      console.log('[VL用户列表] 正在加载数据...', requestParams);
       const response = await getVLUserList(requestParams);
-      if (response.code === 200 && response.data) {
-        setDataSource(response.data.list);
-        setTotal(response.data.total);
+      console.log('[VL用户列表] 服务器响应:', response);
+      
+      if (response.code === 200) {
+        if (response.data && response.data.list) {
+          setDataSource(response.data.list);
+          setTotal(response.data.total || 0);
+          console.log(`[VL用户列表] 加载成功，共 ${response.data.total || 0} 条数据`);
+        } else {
+          setDataSource([]);
+          setTotal(0);
+          console.warn('[VL用户列表] 响应数据为空');
+        }
       } else {
-        message.error(response.message || '加载失败');
+        const errorMsg = response.message || '加载失败';
+        console.error('[VL用户列表] 加载失败:', errorMsg);
+        message.error(errorMsg);
+        setDataSource([]);
+        setTotal(0);
       }
-    } catch (error) {
-      console.error('加载失败:', error);
-      message.error('加载失败，请刷新重试');
+    } catch (error: any) {
+      console.error('[VL用户列表] 加载异常:', error);
+      console.error('[VL用户列表] 错误堆栈:', error.stack);
+      message.error(`加载失败: ${error.message || '请刷新重试'}`);
+      setDataSource([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -86,7 +103,11 @@ const VLUserList: React.FC = () => {
 
   // 初始化加载
   useEffect(() => {
-    loadData();
+    // 延迟一点执行，确保数据库初始化完成
+    const timer = setTimeout(() => {
+      loadData();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [pageNum, pageSize]);
 
   // 搜索

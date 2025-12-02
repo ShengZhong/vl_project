@@ -1,42 +1,74 @@
 # 前端代码开发规范 - Umi + React + Ant Design v4
 
-## 技术栈约束
+> **文档版本**：v1.1  
+> **最后更新**：2025-01-15  
+> **适用范围**：VisionLine 项目前端开发
 
-- **前端框架**：Umi 3.5+ + React 17.0+
-- **UI 组件库**：强制使用 Ant Design v4.24.16
-- **开发语言**：TypeScript 4.9+
-- **状态管理**：Dva（基于 Redux）
-- **布局要求**：顶部导航栏 + 左侧菜单栏 + 右侧内容区
+---
 
-## 强制使用 Ant Design v4 组件规则
+## 📋 目录
 
-### 核心约束
+1. [技术栈约束](#1-技术栈约束)
+2. [Ant Design v4 强制使用规则](#2-ant-design-v4-强制使用规则)
+3. [组件使用规范](#3-组件使用规范)
+4. [Umi 框架使用规范](#4-umi-框架使用规范)
+5. [布局设计规范](#5-布局设计规范)
+6. [Modal 弹框开发规范](#6-modal-弹框开发规范)
+7. [TypeScript 类型定义规范](#7-typescript-类型定义规范)
+8. [API 服务层规范](#8-api-服务层规范)
+9. [开发检查清单](#9-开发检查清单)
+10. [常见错误与修正](#10-常见错误与修正)
 
-- **严格限制**：所有生成的页面和组件必须使用 Ant Design v4 版本的组件
-- **版本锁定**：使用 antd@^4.24.16（最新的 v4 版本）
-- **禁止使用**：不得使用 Ant Design v5 的任何组件或 API
+---
 
-### 导入规范
+## 1. 技术栈约束
+
+| 技术栈 | 版本要求 | 说明 |
+|--------|---------|------|
+| **前端框架** | Umi 3.5+ + React 17.0+ | 基于 Umi 的 React 应用 |
+| **UI 组件库** | Ant Design v4.24.16 | ⚠️ 强制使用 v4，禁止 v5 |
+| **开发语言** | TypeScript 4.9+ | 强类型开发 |
+| **状态管理** | Dva（基于 Redux）| 集成在 Umi 中 |
+| **布局要求** | 顶部导航 + 左侧菜单 + 右侧内容区 | 标准中后台布局 |
+
+---
+
+## 2. Ant Design v4 强制使用规则
+
+### 2.1 核心约束
+
+| 约束项 | 说明 |
+|--------|------|
+| **严格限制** | 所有页面和组件必须使用 Ant Design v4 |
+| **版本锁定** | 使用 `antd@^4.24.16`（最新的 v4 版本）|
+| **禁止使用** | 不得使用 Ant Design v5 的任何组件或 API |
+
+### 2.2 导入规范
+
+#### ✅ 正确的导入方式
 
 ```typescript
-// ✅ 正确的导入方式
 import { Button, Input, Form, Table, Modal, DatePicker } from 'antd';
 import { FormInstance } from 'antd/lib/form';
 import type { ColumnsType } from 'antd/lib/table';
 ```
 
+#### ❌ 错误的导入方式
+
 ```typescript
-// ❌ 错误的导入方式
 import { Button } from 'antd'; // v5 的导入方式
 import type { FormProps } from 'antd/es/form'; // v5 的类型路径
 ```
 
-## 组件使用规范
+---
 
-### 表单组件 (Form)
+## 3. 组件使用规范
+
+### 3.1 表单组件 (Form)
+
+#### 标准写法
 
 ```typescript
-// ✅ Ant Design v4 表单写法
 import React from 'react';
 import { Form, Input, Button, message } from 'antd';
 
@@ -72,10 +104,11 @@ const MyForm: React.FC = () => {
 };
 ```
 
-### 模态框 (Modal)
+### 3.2 模态框 (Modal)
+
+#### ✅ v4 模态框用法
 
 ```typescript
-// ✅ v4 模态框用法
 import React, { useState } from 'react';
 import { Modal, Button, Form, Input } from 'antd';
 
@@ -118,8 +151,9 @@ const MyModal: React.FC = () => {
 };
 ```
 
+#### ❌ v5 的写法（禁止使用）
+
 ```typescript
-// ❌ v5 的写法（禁止使用）
 <Modal
   open={visible}  // v5 使用 open，v4 使用 visible
   onOk={handleOk}
@@ -128,10 +162,11 @@ const MyModal: React.FC = () => {
 </Modal>
 ```
 
-### 表格组件 (Table)
+### 3.3 表格组件 (Table)
+
+#### 标准表格写法
 
 ```typescript
-// ✅ v4 表格用法
 import React from 'react';
 import { Table, Button, Space } from 'antd';
 import type { ColumnsType } from 'antd/lib/table';
@@ -190,9 +225,11 @@ const MyTable: React.FC = () => {
 };
 ```
 
-## Umi 框架使用规范
+---
 
-### 项目结构
+## 4. Umi 框架使用规范
+
+### 4.1 项目结构
 
 ```
 src/
@@ -209,7 +246,7 @@ src/
     └── request.ts   # 请求封装
 ```
 
-### 路由配置 (.umirc.ts)
+### 4.2 路由配置 (.umirc.ts)
 
 ```typescript
 import { defineConfig } from 'umi';
@@ -241,10 +278,9 @@ export default defineConfig({
 });
 ```
 
-### 页面组件规范
+### 4.3 页面组件规范
 
 ```typescript
-// ✅ 标准页面组件结构
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Table, Modal, Form, Input, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -263,7 +299,6 @@ const UserList: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // API 调用
       const response = await fetchUserList();
       setDataSource(response.data);
     } catch (error) {
@@ -314,41 +349,50 @@ const UserList: React.FC = () => {
 export default UserList;
 ```
 
-## 布局设计规范
+---
 
-### 主布局结构
+## 5. 布局设计规范
 
-- **顶部导航栏**：固定在顶部，包含 Logo、菜单折叠按钮、用户信息
-- **左侧菜单栏**：支持最多两层菜单结构，可折叠，与路由对应
-- **右侧内容区**：主要内容展示区域，包含面包屑导航
-- **响应式设计**：小屏幕自动折叠菜单
+### 5.1 主布局结构
 
-### 标准布局代码模板
+| 区域 | 说明 |
+|------|------|
+| **顶部导航栏** | 固定在顶部，包含 Logo、菜单折叠按钮、用户信息 |
+| **左侧菜单栏** | 支持最多两层菜单结构，可折叠，与路由对应 |
+| **右侧内容区** | 主要内容展示区域，包含面包屑导航 |
+| **响应式设计** | 小屏幕自动折叠菜单 |
+
+### 5.2 标准布局代码
 
 参见 `src/layouts/index.tsx`
 
-## Modal 弹框开发规范
+---
 
-### 强制使用 Modal 弹框的场景
+## 6. Modal 弹框开发规范
 
-- **详情页面**：所有详情查看功能必须使用 Modal 弹框形式
-- **新建页面**：所有新增功能必须使用 Modal 弹框形式
-- **编辑页面**：所有编辑功能必须使用 Modal 弹框形式
-- **确认操作**：删除、批量操作等确认对话框
+### 6.1 强制使用 Modal 的场景
 
-### 禁止的页面跳转模式
+| 场景 | 说明 |
+|------|------|
+| **详情页面** | 所有详情查看功能必须使用 Modal 弹框 |
+| **新建页面** | 所有新增功能必须使用 Modal 弹框 |
+| **编辑页面** | 所有编辑功能必须使用 Modal 弹框 |
+| **确认操作** | 删除、批量操作等确认对话框 |
 
-- ❌ 不使用独立的路由页面进行详情查看
-- ❌ 不使用独立的路由页面进行新增操作
-- ❌ 不使用独立的路由页面进行编辑操作
-- ❌ 不使用 Drawer 组件替代 Modal（除非特殊需求）
+### 6.2 禁止的页面跳转模式
 
-### Modal 弹框最佳实践
+| 禁止项 | 说明 |
+|--------|------|
+| ❌ **独立路由详情页** | 不使用独立的路由页面进行详情查看 |
+| ❌ **独立路由新增页** | 不使用独立的路由页面进行新增操作 |
+| ❌ **独立路由编辑页** | 不使用独立的路由页面进行编辑操作 |
+| ❌ **使用 Drawer** | 不使用 Drawer 组件替代 Modal（除非特殊需求）|
+
+### 6.3 Modal 最佳实践
 
 ```typescript
-// ✅ 推荐的 Modal 使用方式
 import React, { useState } from 'react';
-import { Button, Modal, Form, Input, message } from 'antd';
+import { Button, Modal, Descriptions } from 'antd';
 
 interface DetailModalProps {
   record: any;
@@ -411,9 +455,11 @@ const ListPage: React.FC = () => {
 };
 ```
 
-## TypeScript 类型定义规范
+---
 
-### 类型文件组织
+## 7. TypeScript 类型定义规范
+
+### 7.1 类型文件组织
 
 ```
 src/types/
@@ -422,7 +468,7 @@ src/types/
 └── api.ts           # API 响应类型
 ```
 
-### 类型定义示例
+### 7.2 类型定义示例
 
 ```typescript
 // src/types/user.ts
@@ -470,7 +516,11 @@ export interface UserListResponse {
 }
 ```
 
-## API 服务层规范
+---
+
+## 8. API 服务层规范
+
+### 8.1 服务层结构
 
 ```typescript
 // src/services/user.ts
@@ -516,42 +566,55 @@ export async function deleteUser(id: string): Promise<void> {
 }
 ```
 
-## 检查清单
+---
+
+## 9. 开发检查清单
 
 在生成任何页面或组件时，请确认：
+
+### 9.1 基础规范
 
 - [ ] 使用 Umi + React 技术栈
 - [ ] 遵循指定的项目结构
 - [ ] 实现顶部导航 + 左侧菜单 + 右侧内容的布局
+
+### 9.2 组件库规范
+
 - [ ] 使用 Ant Design v4 组件（不使用 v5）
 - [ ] 支持响应式设计
 - [ ] 详情、新建、编辑功能使用 Modal 弹框形式
+
+### 9.3 代码质量
+
 - [ ] 代码具有完整的 TypeScript 类型定义
 - [ ] 所有异步操作有 loading 状态
 - [ ] 所有操作有成功/失败的用户反馈
 - [ ] 表单有完整的校验规则
 
-## 常见错误与修正
+---
 
-### 错误1：使用 v5 的 API
+## 10. 常见错误与修正
+
+### 10.1 错误1：使用 v5 的 API
+
+| 类型 | 代码 |
+|------|------|
+| ❌ 错误 | `<Modal open={visible} />` |
+| ✅ 正确 | `<Modal visible={visible} />` |
+
+### 10.2 错误2：缺少类型定义
+
+#### ❌ 错误
 
 ```typescript
-// ❌ 错误
-<Modal open={visible} />
-
-// ✅ 正确
-<Modal visible={visible} />
-```
-
-### 错误2：缺少类型定义
-
-```typescript
-// ❌ 错误
 const handleSubmit = (values) => {
   console.log(values);
 };
+```
 
-// ✅ 正确
+#### ✅ 正确
+
+```typescript
 interface FormValues {
   name: string;
   email: string;
@@ -562,16 +625,20 @@ const handleSubmit = (values: FormValues) => {
 };
 ```
 
-### 错误3：未处理异步错误
+### 10.3 错误3：未处理异步错误
+
+#### ❌ 错误
 
 ```typescript
-// ❌ 错误
 const loadData = async () => {
   const data = await fetchData();
   setData(data);
 };
+```
 
-// ✅ 正确
+#### ✅ 正确
+
+```typescript
 const loadData = async () => {
   try {
     setLoading(true);
@@ -587,6 +654,15 @@ const loadData = async () => {
 
 ---
 
-**最后更新**：2025-01-15  
-**版本**：v1.0
+## 📝 文档变更记录
 
+| 版本 | 日期 | 更新内容 |
+|------|------|---------|
+| v1.1 | 2025-01-15 | 重构文档结构，优化可读性，增加表格展示 |
+| v1.0 | 2025-01-01 | 初始版本 |
+
+---
+
+**当前版本**：v1.1  
+**最后更新**：2025-01-15  
+**维护团队**：VisionLine 产品团队

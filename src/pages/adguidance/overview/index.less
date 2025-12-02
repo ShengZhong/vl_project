@@ -1,0 +1,315 @@
+.adguidance-overview {
+  padding: 0;
+  background: transparent;
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #262626;
+  }
+
+  // 优化案例横幅
+  .featured-case-section {
+    margin-bottom: 32px;
+    position: relative;
+
+    .featured-case-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 24px 32px;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+
+      :global {
+        .ant-card-body {
+          padding: 0;
+        }
+      }
+
+      .case-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+
+        .case-badge {
+          background: rgba(255, 255, 255, 0.3);
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 11px;
+          margin-right: 12px;
+          font-weight: 500;
+        }
+
+        .case-customer {
+          .customer-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 2px;
+          }
+
+          .customer-industry {
+            font-size: 12px;
+            opacity: 0.85;
+          }
+        }
+      }
+
+      .case-description {
+        font-size: 14px;
+        line-height: 1.6;
+        margin-top: 8px;
+        opacity: 0.95;
+      }
+
+      .case-metrics {
+        .metric-item {
+          text-align: center;
+          padding: 8px 0;
+          border-left: 1px solid rgba(255, 255, 255, 0.2);
+
+          &:first-child {
+            border-left: none;
+          }
+
+          .metric-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 4px;
+          }
+
+          .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+
+            &.success {
+              color: #52c41a;
+            }
+
+            &.primary {
+              color: #40a9ff;
+            }
+
+            &.warning {
+              color: #fadb14;
+            }
+          }
+        }
+      }
+
+      .case-action {
+        margin-top: 12px;
+        text-align: left;
+
+        button {
+          height: 32px;
+          border-radius: 6px;
+          font-size: 14px;
+          padding: 0 24px;
+        }
+      }
+    }
+
+    .case-indicators {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+
+      .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #d9d9d9;
+        cursor: pointer;
+        transition: all 0.3s;
+
+        &.active {
+          width: 24px;
+          border-radius: 4px;
+          background: #667eea;
+        }
+
+        &:hover {
+          background: #667eea;
+        }
+      }
+    }
+  }
+
+  // 平台统计卡片
+  .platform-section {
+    margin-bottom: 32px;
+
+    .platform-card {
+      border-radius: 12px;
+      transition: all 0.3s;
+      height: 100%;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+
+      :global {
+        .ant-card-body {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          padding: 24px;
+        }
+      }
+
+      &:hover {
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        transform: translateY(-4px);
+      }
+
+      .platform-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 32px;
+
+        .platform-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 56px;
+          height: 56px;
+          background: #f5f5f5;
+          border-radius: 12px;
+        }
+
+        .platform-info {
+          flex: 1;
+
+          .platform-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #262626;
+            margin-bottom: 4px;
+          }
+
+          .platform-code {
+            font-size: 13px;
+            color: #8c8c8c;
+          }
+        }
+      }
+
+      .platform-stats {
+        flex: 1;
+
+        .stat-item {
+          text-align: center;
+
+          .stat-label {
+            font-size: 13px;
+            color: #8c8c8c;
+            margin-bottom: 8px;
+          }
+
+          .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #262626;
+
+            .stat-unit {
+              font-size: 14px;
+              font-weight: 400;
+              color: #8c8c8c;
+              margin-left: 2px;
+            }
+
+            .stat-currency {
+              font-size: 16px;
+              font-weight: 400;
+              margin-right: 2px;
+            }
+          }
+        }
+      }
+
+      .platform-actions {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #f0f0f0;
+        text-align: center;
+
+        button {
+          font-size: 14px;
+          padding: 0;
+
+          :global {
+            .anticon {
+              margin-left: 4px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 机会分数分布
+  .score-section {
+    .score-card {
+      text-align: center;
+      border-radius: 12px;
+      transition: all 0.3s;
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+
+      :global {
+        .ant-card-body {
+          padding: 32px 24px;
+        }
+      }
+
+      &:hover {
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        transform: translateY(-4px);
+      }
+
+      .score-icon {
+        font-size: 56px;
+        margin-bottom: 20px;
+      }
+
+      &.excellent .score-icon {
+        color: #52c41a;
+      }
+
+      &.good .score-icon {
+        color: #faad14;
+      }
+
+      &.poor .score-icon {
+        color: #f5222d;
+      }
+
+      .score-desc {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #8c8c8c;
+        margin-bottom: 16px;
+      }
+
+      :global {
+        .ant-statistic-title {
+          font-size: 15px;
+          font-weight: 500;
+        }
+
+        .ant-statistic-content {
+          font-size: 36px;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+}
+

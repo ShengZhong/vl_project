@@ -189,14 +189,55 @@ const initialData: VLUser[] = [
   },
 ];
 
+// 初始化标志，防止重复初始化
+let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
+
 // 初始化数据
 const getVLUsers = async (): Promise<VLUser[]> => {
-  const users = await getAllData<VLUser>('vlusers');
-  if (users.length === 0) {
-    await addBatchData('vlusers', initialData);
-    return initialData;
+  try {
+    const users = await getAllData<VLUser>('vlusers');
+    if (users.length === 0) {
+      console.log('[VL用户列表] 初始化用户数据...');
+      await addBatchData('vlusers', initialData);
+      console.log('[VL用户列表] 用户数据初始化完成');
+      return initialData;
+    }
+    return users;
+  } catch (error) {
+    console.error('[VL用户列表] 获取用户数据失败:', error);
+    throw error;
   }
-  return users;
+};
+
+// 确保初始化只执行一次
+const ensureInitialized = async (): Promise<void> => {
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+  
+  if (isInitializing) {
+    // 等待初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return ensureInitialized();
+  }
+  
+  isInitializing = true;
+  
+  initializationPromise = (async () => {
+    try {
+      console.log('[VL用户列表] 开始初始化数据...');
+      await getVLUsers();
+      console.log('[VL用户列表] 数据初始化完成');
+    } catch (error) {
+      console.error('[VL用户列表] 数据初始化失败:', error);
+      throw error;
+    } finally {
+      isInitializing = false;
+    }
+  })();
+  
+  return initializationPromise;
 };
 
 export default {
@@ -205,22 +246,37 @@ export default {
     try {
       const { pageNum = 1, pageSize = 10, vlid, signInfo } = req.query;
       
+      // 确保数据已初始化
+      await ensureInitialized();
+      
       // 从数据库获取数据
-      let allData = await getVLUsers();
+      let allData = await getAllData<VLUser>('vlusers');
+      console.log(`[VL用户列表] 从数据库获取到 ${allData.length} 条用户数据`);
+      
+      // 如果没有数据，返回空列表
+      if (!allData || allData.length === 0) {
+        console.warn('[VL用户列表] 数据库中没有用户数据');
+        res.json({
+          code: 200,
+          message: '暂无数据',
+          data: {
+            list: [],
+            total: 0,
+            pageNum: Number(pageNum),
+            pageSize: Number(pageSize),
+          },
+        });
+        return;
+      }
       
       // 应用筛选条件
       if (vlid) {
-        allData = await findData<VLUser>(
-          'vlusers',
-          (item) => item.vlid.includes(vlid)
-        );
+        allData = allData.filter(item => item.vlid.includes(vlid));
       }
       if (signInfo) {
-        allData = await findData<VLUser>(
-          'vlusers',
-          (item) =>
-            (item.signCompany && item.signCompany.includes(signInfo)) ||
-            (item.registeredEntity && item.registeredEntity.includes(signInfo))
+        allData = allData.filter(item =>
+          (item.signCompany && item.signCompany.includes(signInfo)) ||
+          (item.registeredEntity && item.registeredEntity.includes(signInfo))
         );
       }
 
@@ -228,6 +284,8 @@ export default {
       const start = (Number(pageNum) - 1) * Number(pageSize);
       const end = start + Number(pageSize);
       const list = allData.slice(start, end);
+
+      console.log(`[VL用户列表] 返回 ${list.length} 条数据，总计 ${allData.length} 条`);
 
       res.json({
         code: 200,
@@ -240,13 +298,16 @@ export default {
         },
       });
     } catch (error: any) {
-      console.error('获取列表失败:', error);
+      console.error('[VL用户列表] 获取列表失败:', error);
+      console.error('[VL用户列表] 错误堆栈:', error.stack);
       res.json({
         code: 500,
         message: error.message || '获取列表失败',
         data: {
           list: [],
           total: 0,
+          pageNum: 1,
+          pageSize: 10,
         },
       });
     }

@@ -18,6 +18,9 @@ import type {
   SettlementEntity,
   Customer,
   Personnel,
+} from '../src/types/metaadguidance';
+// 枚举需要单独导入（不能使用 import type）
+import {
   PersonnelRole,
   CustomerType,
 } from '../src/types/metaadguidance';
@@ -533,27 +536,70 @@ const initializeAllData = async (): Promise<void> => {
   await initMetrics();
 };
 
+// 初始化标志，防止重复初始化
+let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
+
 // 初始化数据
 const getAccounts = async (): Promise<AdAccountGuidance[]> => {
-  const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
-  
-  // 如果表为空，初始化基础数据
-  if (accounts.length === 0) {
-    await addBatchData('metaadguidance.accounts', initialData);
-    await addBatchData('metaadguidance.accounts', additionalData);
-    return [...initialData, ...additionalData];
+  try {
+    const accounts = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+    
+    // 如果表为空，初始化基础数据
+    if (accounts.length === 0) {
+      console.log('[Meta广告指导] 初始化基础账户数据...');
+      await addBatchData('metaadguidance.accounts', initialData);
+      await addBatchData('metaadguidance.accounts', additionalData);
+      console.log('[Meta广告指导] 基础账户数据初始化完成');
+      return [...initialData, ...additionalData];
+    }
+    
+    // 检查是否需要添加新增的10条数据（避免重复添加）
+    const existingAccountIds = new Set(accounts.map(acc => acc.adAccountId));
+    const missingData = additionalData.filter(item => !existingAccountIds.has(item.adAccountId));
+    
+    if (missingData.length > 0) {
+      console.log(`[Meta广告指导] 添加缺失的 ${missingData.length} 条账户数据...`);
+      await addBatchData('metaadguidance.accounts', missingData);
+      return await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+    }
+    
+    return accounts;
+  } catch (error) {
+    console.error('[Meta广告指导] 获取账户数据失败:', error);
+    throw error;
+  }
+};
+
+// 确保初始化只执行一次
+const ensureInitialized = async (): Promise<void> => {
+  if (initializationPromise) {
+    return initializationPromise;
   }
   
-  // 检查是否需要添加新增的10条数据（避免重复添加）
-  const existingAccountIds = new Set(accounts.map(acc => acc.adAccountId));
-  const missingData = additionalData.filter(item => !existingAccountIds.has(item.adAccountId));
-  
-  if (missingData.length > 0) {
-    await addBatchData('metaadguidance.accounts', missingData);
-    return await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+  if (isInitializing) {
+    // 等待初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return ensureInitialized();
   }
   
-  return accounts;
+  isInitializing = true;
+  
+  initializationPromise = (async () => {
+    try {
+      console.log('[Meta广告指导] 开始初始化数据...');
+      await getAccounts();
+      await initializeAllData();
+      console.log('[Meta广告指导] 数据初始化完成');
+    } catch (error) {
+      console.error('[Meta广告指导] 数据初始化失败:', error);
+      throw error;
+    } finally {
+      isInitializing = false;
+    }
+  })();
+  
+  return initializationPromise;
 };
 
 export default {
@@ -562,12 +608,26 @@ export default {
     try {
       const { pageNum = 1, pageSize = 20, consolidatedEntity, settlementEntity, adAccountId } = req.query;
       
-      // 初始化所有关联数据
-      await getAccounts();
-      await initializeAllData();
+      // 确保数据已初始化
+      await ensureInitialized();
       
       // 从数据库获取数据
       let allData = await getAllData<AdAccountGuidance>('metaadguidance.accounts');
+      console.log(`[Meta广告指导] 从数据库获取到 ${allData.length} 条账户数据`);
+      
+      // 如果没有数据，返回空列表
+      if (!allData || allData.length === 0) {
+        console.warn('[Meta广告指导] 数据库中没有账户数据');
+        res.json({
+          code: 200,
+          message: '暂无数据',
+          data: {
+            list: [],
+            total: 0,
+          },
+        });
+        return;
+      }
       
       // 应用筛选条件
       if (consolidatedEntity) {
@@ -618,6 +678,8 @@ export default {
       const end = start + Number(pageSize);
       const list = enrichedData.slice(start, end);
 
+      console.log(`[Meta广告指导] 返回 ${list.length} 条数据，总计 ${enrichedData.length} 条`);
+
       res.json({
         code: 200,
         message: '成功',
@@ -627,7 +689,8 @@ export default {
         },
       });
     } catch (error: any) {
-      console.error('获取列表失败:', error);
+      console.error('[Meta广告指导] 获取列表失败:', error);
+      console.error('[Meta广告指导] 错误堆栈:', error.stack);
       res.json({
         code: 500,
         message: error.message || '获取列表失败',
