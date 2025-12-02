@@ -11,6 +11,25 @@ export default defineConfig({
     baseNavigator: true,
     baseSeparator: '-',
   },
+  // Webpack 配置：处理 WebAssembly 文件
+  chainWebpack(config) {
+    // 配置 WebAssembly 文件加载规则
+    config.module
+      .rule('wasm')
+      .test(/\.wasm$/)
+      .type('javascript/auto')
+      .use('file-loader')
+      .loader('file-loader')
+      .options({
+        name: '[name].[contenthash].[ext]',
+        outputPath: 'static/wasm/',
+      });
+
+    // 排除 wasm 文件被其他 loader 处理
+    config.module.rule('asset').exclude.add(/\.wasm$/);
+    
+    return config;
+  },
   routes: [
     {
       path: '/',

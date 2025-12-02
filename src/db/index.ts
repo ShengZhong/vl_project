@@ -3,7 +3,9 @@
  * 基于 SQLite (sql.js) 实现，使用 localStorage 作为存储适配器
  */
 
-import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
+// 使用类型导入，避免直接导入 sql.js 模块
+type Database = any;
+type SqlJsStatic = any;
 
 // 数据库结构定义（用于类型检查）
 export interface DatabaseSchema {
@@ -37,32 +39,32 @@ const initDatabase = async (): Promise<void> => {
   }
 
   try {
-    // 初始化 sql.js
+    // 初始化 sql.js（使用 CDN 加载以避免 webpack 打包问题）
     if (!SQL) {
-      const config: any = {};
-      
-      // 在浏览器环境中，需要加载 wasm 文件
-      if (typeof window !== 'undefined') {
-        // 浏览器环境：使用 CDN 加载 wasm 文件
-        config.locateFile = (file: string) => {
-          return `https://sql.js.org/dist/${file}`;
-        };
-      } else {
-        // Node.js 环境：使用本地路径
-        try {
-          config.locateFile = (file: string) => {
-            const path = require('path');
-            return path.join(__dirname, '../../node_modules/sql.js/dist', file);
-          };
-        } catch (e) {
-          // 如果 require 失败，尝试使用默认路径
-          config.locateFile = (file: string) => {
-            return require.resolve(`sql.js/dist/${file}`);
-          };
-        }
+      if (typeof window === 'undefined') {
+        // Node.js/SSR 环境：暂时不支持，直接返回
+        console.warn('数据库功能仅在浏览器环境中可用');
+        return;
+      }
+
+      // 浏览器环境：从 CDN 加载 sql.js
+      // 检查是否已经加载了 sql.js 脚本
+      if (!(window as any).initSqlJs) {
+        // 动态加载 sql.js 脚本
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://sql.js.org/dist/sql-wasm.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load sql.js from CDN'));
+          document.head.appendChild(script);
+        });
       }
       
-      SQL = await initSqlJs(config);
+      // 初始化 SQL.js
+      const initSqlJs = (window as any).initSqlJs;
+      SQL = await initSqlJs({
+        locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+      });
     }
 
     // 从 localStorage 加载数据库（如果存在）
