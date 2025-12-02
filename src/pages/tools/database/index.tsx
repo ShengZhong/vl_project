@@ -10,7 +10,7 @@ import TableSchema from './components/TableSchema';
 import TableRelations from './components/TableRelations';
 import SQLQuery from './components/SQLQuery';
 import type { TableInfo, ForeignKeyInfo } from '@/types/database';
-import { getTables, getRelationships } from '@/services/database';
+import { getAllTableNames, getTableStructure, getAllTableRelationships } from '@/db';
 import './index.less';
 
 const { TabPane } = Tabs;
@@ -21,27 +21,43 @@ const DatabaseManagement: React.FC = () => {
   const [relationships, setRelationships] = useState<ForeignKeyInfo[]>([]);
   const [activeTab, setActiveTab] = useState('schema');
 
-  // 加载表结构
+  // 加载表结构（直接调用本地数据库函数）
   const loadTables = async () => {
     setLoading(true);
     try {
-      const data = await getTables();
-      setTables(data);
+      // 获取所有表名
+      const tableNames = await getAllTableNames();
+      
+      // 获取每个表的结构
+      const tablesData: TableInfo[] = [];
+      for (const tableName of tableNames) {
+        const columns = await getTableStructure(tableName);
+        tablesData.push({
+          tableName,
+          columns,
+        });
+      }
+      
+      setTables(tablesData);
+      message.success(`成功加载 ${tablesData.length} 个表的结构`);
     } catch (error: any) {
-      message.error(`加载表结构失败: ${error.message}`);
+      console.error('加载表结构失败:', error);
+      message.error(`加载表结构失败: ${error.message || '未知错误'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // 加载表关系
+  // 加载表关系（直接调用本地数据库函数）
   const loadRelationships = async () => {
     setLoading(true);
     try {
-      const data = await getRelationships();
-      setRelationships(data);
+      const relationshipsData = await getAllTableRelationships();
+      setRelationships(relationshipsData);
+      message.success(`成功加载 ${relationshipsData.length} 条表关系`);
     } catch (error: any) {
-      message.error(`加载表关系失败: ${error.message}`);
+      console.error('加载表关系失败:', error);
+      message.error(`加载表关系失败: ${error.message || '未知错误'}`);
     } finally {
       setLoading(false);
     }

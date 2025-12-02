@@ -14,7 +14,7 @@ import {
   ExclamationCircleOutlined 
 } from '@ant-design/icons';
 import type { SQLQueryResult } from '@/types/database';
-import { executeSQL } from '@/services/database';
+import { executeSQLQuery } from '@/db';
 
 const { TextArea } = Input;
 
@@ -24,62 +24,77 @@ const SQLQuery: React.FC = () => {
   const [result, setResult] = useState<SQLQueryResult | null>(null);
   const [showResult, setShowResult] = useState(false);
 
-  // 执行SQL
+  // 执行SQL（直接调用本地数据库函数）
   const handleExecuteSQL = async (confirmed = false) => {
     if (!sql.trim()) {
       message.warning('请输入SQL语句');
       return;
     }
 
+    const trimmedSQL = sql.trim();
+
+    // 检查是否为修改操作
+    const modifyKeywords = ['UPDATE', 'DELETE', 'INSERT'];
+    const sqlUpper = trimmedSQL.toUpperCase();
+    let isModifyOperation = false;
+    
+    for (const keyword of modifyKeywords) {
+      if (sqlUpper.startsWith(keyword)) {
+        isModifyOperation = true;
+        break;
+      }
+    }
+
+    // 如果是修改操作且未确认，显示确认对话框
+    if (isModifyOperation && !confirmed) {
+      Modal.confirm({
+        title: '确认执行修改操作',
+        icon: <ExclamationCircleOutlined />,
+        content: (
+          <div>
+            <p>您即将执行以下SQL语句：</p>
+            <pre style={{ 
+              background: '#f5f5f5', 
+              padding: '12px', 
+              borderRadius: '4px',
+              maxHeight: '200px',
+              overflow: 'auto',
+            }}>
+              {sql}
+            </pre>
+            <Alert 
+              message="此操作将修改数据库数据，请确认是否继续？" 
+              type="warning" 
+              showIcon 
+              style={{ marginTop: 12 }}
+            />
+          </div>
+        ),
+        okText: '确认执行',
+        okType: 'danger',
+        cancelText: '取消',
+        width: 600,
+        onOk: () => handleExecuteSQL(true),
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await executeSQL({ sql, confirm: confirmed });
-
-      if (response.success && response.data) {
-        setResult(response.data);
-        setShowResult(true);
-        
-        if (response.data.isModifyOperation) {
-          message.success('SQL执行成功，数据已更新');
-        } else {
-          message.success(`查询成功，返回 ${response.data.rowCount} 行`);
-        }
-      } else if (response.needConfirm) {
-        // 需要二次确认
-        Modal.confirm({
-          title: '确认执行修改操作',
-          icon: <ExclamationCircleOutlined />,
-          content: (
-            <div>
-              <p>您即将执行以下SQL语句：</p>
-              <pre style={{ 
-                background: '#f5f5f5', 
-                padding: '12px', 
-                borderRadius: '4px',
-                maxHeight: '200px',
-                overflow: 'auto',
-              }}>
-                {sql}
-              </pre>
-              <Alert 
-                message="此操作将修改数据库数据，请确认是否继续？" 
-                type="warning" 
-                showIcon 
-                style={{ marginTop: 12 }}
-              />
-            </div>
-          ),
-          okText: '确认执行',
-          okType: 'danger',
-          cancelText: '取消',
-          width: 600,
-          onOk: () => handleExecuteSQL(true),
-        });
+      // 直接调用本地数据库函数执行SQL
+      const queryResult = await executeSQLQuery(trimmedSQL);
+      
+      setResult(queryResult);
+      setShowResult(true);
+      
+      if (queryResult.isModifyOperation) {
+        message.success('SQL执行成功，数据已更新');
       } else {
-        message.error(response.error || 'SQL执行失败');
+        message.success(`查询成功，返回 ${queryResult.rowCount} 行，耗时 ${queryResult.executionTime}ms`);
       }
     } catch (error: any) {
-      message.error(`SQL执行失败: ${error.message}`);
+      console.error('SQL执行失败:', error);
+      message.error(`SQL执行失败: ${error.message || '未知错误'}`);
     } finally {
       setLoading(false);
     }
