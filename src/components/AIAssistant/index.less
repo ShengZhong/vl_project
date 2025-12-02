@@ -1,26 +1,24 @@
 .ai-assistant-fab {
   position: fixed;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  width: 48px;
+  bottom: 32px;
+  right: 32px;
+  width: 60px;
   height: 60px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 0 30px 30px 0;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   cursor: pointer;
-  box-shadow: 2px 0 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
   transition: all 0.3s;
   z-index: 1000;
   animation: pulse 2s infinite;
-  padding-left: 8px;
 
   &:hover {
-    width: 56px;
-    box-shadow: 2px 0 30px rgba(102, 126, 234, 0.6);
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
   }
 }
 
@@ -36,12 +34,12 @@
 .ai-assistant-container {
   position: fixed;
   top: 0;
-  left: 0;
+  right: 0;
   width: 480px;
   height: 100vh;
   z-index: 999;
-  animation: slideInFromLeft 0.3s ease-out;
-  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.1);
+  animation: slideInFromRight 0.3s ease-out;
+  box-shadow: -2px 0 16px rgba(0, 0, 0, 0.1);
 
   .ai-assistant-card {
     height: 100%;
@@ -89,9 +87,9 @@
   }
 }
 
-@keyframes slideInFromLeft {
+@keyframes slideInFromRight {
   from {
-    transform: translateX(-100%);
+    transform: translateX(100%);
     opacity: 0;
   }
   to {
