@@ -520,7 +520,13 @@ const saveDatabase = (): void => {
     const data = db.export();
     if (typeof window !== 'undefined' && window.localStorage) {
       // 将 Uint8Array 转换为 base64 字符串
-      const binaryString = String.fromCharCode.apply(null, Array.from(data));
+      // 使用分块处理避免栈溢出
+      let binaryString = '';
+      const chunkSize = 65536; // 64KB chunks
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.subarray(i, Math.min(i + chunkSize, data.length));
+        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+      }
       const base64 = btoa(binaryString);
       localStorage.setItem('vl_project_db', base64);
     }
