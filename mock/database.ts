@@ -4,12 +4,22 @@
  */
 
 import { Request, Response } from 'express';
-import { 
-  getAllTableNames, 
-  getTableStructure, 
-  getAllTableRelationships, 
-  executeSQLQuery 
-} from '../src/db';
+
+// 动态导入数据库函数（避免构建时的路径问题）
+const getDBFunctions = async () => {
+  try {
+    const db = await import('../src/db/index');
+    return {
+      getAllTableNames: db.getAllTableNames,
+      getTableStructure: db.getTableStructure,
+      getAllTableRelationships: db.getAllTableRelationships,
+      executeSQLQuery: db.executeSQLQuery,
+    };
+  } catch (error) {
+    console.error('Failed to import database functions:', error);
+    throw error;
+  }
+};
 
 export default {
   /**
@@ -17,6 +27,7 @@ export default {
    */
   'GET /api/database/tables': async (req: Request, res: Response) => {
     try {
+      const { getAllTableNames, getTableStructure } = await getDBFunctions();
       const tables = await getAllTableNames();
       const result = [];
 
@@ -30,7 +41,8 @@ export default {
 
       res.json({ success: true, data: result });
     } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+      console.error('Error in /api/database/tables:', error);
+      res.status(500).json({ success: false, error: error.message || '获取表结构失败' });
     }
   },
 
@@ -39,10 +51,12 @@ export default {
    */
   'GET /api/database/relationships': async (req: Request, res: Response) => {
     try {
+      const { getAllTableRelationships } = await getDBFunctions();
       const relationships = await getAllTableRelationships();
       res.json({ success: true, data: relationships });
     } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+      console.error('Error in /api/database/relationships:', error);
+      res.status(500).json({ success: false, error: error.message || '获取表关系失败' });
     }
   },
 
@@ -84,10 +98,12 @@ export default {
         });
       }
 
+      const { executeSQLQuery } = await getDBFunctions();
       const result = await executeSQLQuery(trimmedSQL);
       res.json({ success: true, data: result });
     } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+      console.error('Error in /api/database/execute:', error);
+      res.status(500).json({ success: false, error: error.message || 'SQL执行失败' });
     }
   },
 };
