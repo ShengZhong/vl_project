@@ -43,18 +43,20 @@
 
   .ai-assistant-card {
     height: 100%;
-    display: flex !important; /* 强制使用 flex 布局 */
+    display: flex !important;
     flex-direction: column !important;
     border-radius: 0;
+    overflow: hidden;
 
     :global {
       .ant-card-head {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: #fff;
         border-bottom: none;
-        flex: 0 0 auto !important; /* 固定大小，不伸缩 */
+        flex: 0 0 auto !important;
         min-height: 57px;
-        height: 57px; /* 固定头部高度 */
+        height: 57px;
+        z-index: 1;
 
         .ant-card-head-title {
           color: #fff;
@@ -73,13 +75,13 @@
       }
 
       .ant-card-body {
-        flex: 1 1 0 !important; /* 占据剩余空间 */
+        flex: 1 1 auto !important;
         display: flex !important;
         flex-direction: column !important;
         padding: 0 !important;
-        overflow: hidden !important; /* 重要：防止内容溢出 */
-        min-height: 0 !important; /* 重要：确保 flex 布局正确计算高度 */
-        height: 0; /* 配合 flex: 1 使用，确保不超出 */
+        overflow: hidden !important;
+        height: auto !important;
+        position: relative;
       }
     }
   }
@@ -97,12 +99,13 @@
 }
 
 .messages-container {
-  flex: 1;
+  flex: 1 1 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px;
   background: #f5f7fa;
-  min-height: 0; /* 重要：确保 flex 子元素可以正确滚动 */
+  height: 0; /* Ensure flex item scrolls correctly */
+  width: 100%;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -222,63 +225,36 @@
   border-top: 1px solid #f0f0f0;
 }
 
-.input-container {
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
-  flex-shrink: 0; /* 防止输入框被压缩 */
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  transition: height 0.1s ease-out;
-
-  .resize-handle {
-    height: 8px;
-    width: 100%;
-    cursor: ns-resize;
+  .input-container {
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    flex-shrink: 0; /* 防止输入框被压缩 */
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fafafa;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background 0.2s;
+    flex-direction: column;
+    position: relative;
+    transition: height 0.1s ease-out;
+    min-height: 60px;
 
-    &:hover {
-      background: #f0f0f0;
+    .input-wrapper {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex: 1;
+      /* overflow: hidden;  Removed to allow content to show */
+    }
 
-      .resize-handle-bar {
-        background: #667eea;
+    :global {
+      .ant-input {
+        border-radius: 8px;
+        resize: none !important; /* AutoSize handles height */
+      }
+
+      .ant-btn {
+        border-radius: 8px;
+        height: auto;
+        padding: 8px 16px;
       }
     }
-
-    .resize-handle-bar {
-      width: 40px;
-      height: 3px;
-      background: #d9d9d9;
-      border-radius: 2px;
-      transition: background 0.2s;
-    }
   }
-
-  .input-wrapper {
-    padding: 12px 16px;
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  :global {
-    .ant-input {
-      border-radius: 8px;
-      resize: none !important;
-    }
-
-    .ant-btn {
-      border-radius: 8px;
-      height: auto;
-      padding: 8px 16px;
-    }
-  }
-}
 

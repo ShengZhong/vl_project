@@ -19,6 +19,8 @@ export interface DatabaseSchema {
   };
   // 个人信息数据
   profiles: any[];
+  // 权限管理数据
+  sales_ae_relations: any[];
   // 其他功能数据
   [key: string]: any;
 }
@@ -42,29 +44,36 @@ const initDatabase = async (): Promise<void> => {
     // 初始化 sql.js（使用 CDN 加载以避免 webpack 打包问题）
     if (!SQL) {
       if (typeof window === 'undefined') {
-        // Node.js/SSR 环境：暂时不支持，直接返回
-        console.warn('数据库功能仅在浏览器环境中可用');
-        return;
-      }
-
-      // 浏览器环境：从 CDN 加载 sql.js
-      // 检查是否已经加载了 sql.js 脚本
-      if (!(window as any).initSqlJs) {
-        // 动态加载 sql.js 脚本
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://sql.js.org/dist/sql-wasm.js';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load sql.js from CDN'));
-          document.head.appendChild(script);
+        // Node.js 环境：尝试使用 require 加载 (绕过 Webpack)
+        try {
+          // @ts-ignore
+          const r = eval('require');
+          const initSqlJs = r('sql.js');
+          SQL = await initSqlJs();
+        } catch (e) {
+          console.error('Node.js 环境下加载 sql.js 失败:', e);
+          throw e;
+        }
+      } else {
+        // 浏览器环境：从 CDN 加载 sql.js
+        // 检查是否已经加载了 sql.js 脚本
+        if (!(window as any).initSqlJs) {
+          // 动态加载 sql.js 脚本
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://sql.js.org/dist/sql-wasm.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load sql.js from CDN'));
+            document.head.appendChild(script);
+          });
+        }
+        
+        // 初始化 SQL.js
+        const initSqlJs = (window as any).initSqlJs;
+        SQL = await initSqlJs({
+          locateFile: (file: string) => `https://sql.js.org/dist/${file}`
         });
       }
-      
-      // 初始化 SQL.js
-      const initSqlJs = (window as any).initSqlJs;
-      SQL = await initSqlJs({
-        locateFile: (file: string) => `https://sql.js.org/dist/${file}`
-      });
     }
 
     // 从 localStorage 加载数据库（如果存在）
@@ -85,6 +94,22 @@ const initDatabase = async (): Promise<void> => {
           console.warn('加载数据库失败，将创建新数据库', e);
         }
       }
+    } else if (typeof window === 'undefined') {
+        // Node.js 环境：暂时不持久化，或者可以 mock localStorage
+        // 这里我们简单起见，每次启动都是新库，或者尝试读取本地文件（如果有权限）
+        // 为了演示，我们先不持久化，每次 Mock 服务重启都会重置
+        // 如果需要持久化，可以使用 fs 模块读写文件
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const dbPath = path.join(process.cwd(), 'mock_db.sqlite');
+            if (fs.existsSync(dbPath)) {
+                const buffer = fs.readFileSync(dbPath);
+                dbData = new Uint8Array(buffer);
+            }
+        } catch (e) {
+            // 忽略文件读取错误
+        }
     }
 
     // 创建或加载数据库
@@ -330,6 +355,28 @@ const createTables = (): void => {
     )
   `);
 
+  // Sales-AE 关系表 (功能点ID: VL-SYS-001)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sales_ae_relations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      salesId TEXT NOT NULL,
+      aeId TEXT NOT NULL,
+      createdAt TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (salesId) REFERENCES profiles(userId) ON DELETE CASCADE,
+      FOREIGN KEY (aeId) REFERENCES profiles(userId) ON DELETE CASCADE
+    )
+  `);
+
+  // 为 sales_ae_relations 创建索引
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_sales_ae_relations_salesId 
+    ON sales_ae_relations(salesId)
+  `);
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_sales_ae_relations_aeId 
+    ON sales_ae_relations(aeId)
+  `);
+
   // ===== VL广告指导建议系统表结构 (功能点ID: VL-ADGD-001) =====
 
   // 广告平台表
@@ -529,6 +576,18 @@ const saveDatabase = (): void => {
       }
       const base64 = btoa(binaryString);
       localStorage.setItem('vl_project_db', base64);
+    } else if (typeof window === 'undefined') {
+      // Node.js 环境：保存到文件
+      try {
+        // @ts-ignore
+        const fs = require('fs');
+        // @ts-ignore
+        const path = require('path');
+        const dbPath = path.join(process.cwd(), 'mock_db.sqlite');
+        fs.writeFileSync(dbPath, Buffer.from(data));
+      } catch (e) {
+        console.warn('Node.js 环境下保存数据库失败 (可能是只读环境)');
+      }
     }
   } catch (error) {
     console.error('保存数据库失败:', error);
@@ -805,6 +864,19 @@ export const addData = async <T = any>(tableName: string, data: T): Promise<T> =
       item.createdAt || new Date().toISOString(),
       item.updatedAt || new Date().toISOString(),
     ];
+  } else if (tableName === 'sales_ae_relations') {
+    const item = data as any;
+    sql = `
+      INSERT INTO sales_ae_relations (
+        salesId, aeId, createdAt
+      )
+      VALUES (?, ?, ?)
+    `;
+    values = [
+      item.salesId || '',
+      item.aeId || '',
+      item.createdAt || new Date().toISOString(),
+    ];
   } else if (tableName === 'adguidance_customers') {
     const item = data as any;
     sql = `
@@ -1056,6 +1128,17 @@ export const updateData = async <T = any>(
       new Date().toISOString(),
       (item as any).userId || (item as any).id,
     ]);
+  } else if (tableName === 'sales_ae_relations') {
+    const data = updated as any;
+    db.run(`
+      UPDATE sales_ae_relations SET
+        salesId = ?, aeId = ?
+      WHERE id = ?
+    `, [
+      data.salesId,
+      data.aeId,
+      (item as any).id,
+    ]);
   }
 
   saveDatabase();
@@ -1089,6 +1172,8 @@ export const removeData = async <T = any>(
     db.run('DELETE FROM vlusers WHERE vlid = ?', [(item as any).vlid]);
   } else if (tableName === 'profiles') {
     db.run('DELETE FROM profiles WHERE userId = ?', [(item as any).userId]);
+  } else if (tableName === 'sales_ae_relations') {
+    db.run('DELETE FROM sales_ae_relations WHERE id = ?', [(item as any).id]);
   }
 
   saveDatabase();
@@ -1116,6 +1201,8 @@ export const removeBatchData = async <T = any>(
         return (i as any).vlid === (item as any).vlid;
       } else if (tableName === 'profiles') {
         return (i as any).userId === (item as any).userId;
+      } else if (tableName === 'sales_ae_relations') {
+        return (i as any).id === (item as any).id;
       }
       return false;
     });
@@ -1325,6 +1412,16 @@ export const getAllData = async <T = any>(tableName: string): Promise<T[]> => {
         ...data,
       } as T;
     };
+  } else if (tableName === 'sales_ae_relations') {
+    sql = 'SELECT * FROM sales_ae_relations';
+    transform = (row: any[]) => {
+      return {
+        id: row[0],
+        salesId: row[1],
+        aeId: row[2],
+        createdAt: row[3],
+      } as T;
+    };
   } else if (tableName === 'ad_platforms') {
     sql = 'SELECT * FROM ad_platforms';
     transform = (row: any[]) => {
@@ -1443,6 +1540,8 @@ export const clearTable = async (tableName: string): Promise<void> => {
     sql = 'DELETE FROM metaadguidance_metrics';
   } else if (tableName === 'profiles') {
     sql = 'DELETE FROM profiles';
+  } else if (tableName === 'sales_ae_relations') {
+    sql = 'DELETE FROM sales_ae_relations';
   } else {
     throw new Error(`不支持的表名: ${tableName}`);
   }
@@ -1466,6 +1565,7 @@ export const hasTable = async (tableName: string): Promise<boolean> => {
     'metaadguidance.recommendations': 'metaadguidance_recommendations',
     'metaadguidance.metrics': 'metaadguidance_metrics',
     'profiles': 'profiles',
+    'sales_ae_relations': 'sales_ae_relations',
   };
 
   const actualTableName = tableMap[tableName];
@@ -1511,7 +1611,7 @@ export const getTable = async <T = any>(tableName: string): Promise<T[]> => {
 export const getDBStats = async () => {
   const stats: Record<string, number> = {};
   
-  const tables = ['vlusers', 'metaadguidance.accounts', 'metaadguidance.recommendations', 'metaadguidance.metrics', 'profiles'];
+  const tables = ['vlusers', 'metaadguidance.accounts', 'metaadguidance.recommendations', 'metaadguidance.metrics', 'profiles', 'sales_ae_relations'];
   
   for (const table of tables) {
     try {
@@ -1533,7 +1633,7 @@ export const exportDB = async (): Promise<string> => {
   if (!db) throw new Error('数据库未初始化');
 
   const data: any = {};
-  const tables = ['vlusers', 'metaadguidance.accounts', 'metaadguidance.recommendations', 'metaadguidance.metrics', 'profiles'];
+  const tables = ['vlusers', 'metaadguidance.accounts', 'metaadguidance.recommendations', 'metaadguidance.metrics', 'profiles', 'sales_ae_relations'];
   
   for (const table of tables) {
     try {
@@ -1563,6 +1663,7 @@ export const importDB = async (data: string): Promise<void> => {
     await clearTable('metaadguidance.recommendations');
     await clearTable('metaadguidance.metrics');
     await clearTable('profiles');
+    await clearTable('sales_ae_relations');
     
     // 导入数据
     if (parsed.vlusers && Array.isArray(parsed.vlusers)) {
@@ -1579,6 +1680,9 @@ export const importDB = async (data: string): Promise<void> => {
     }
     if (parsed.profiles && Array.isArray(parsed.profiles)) {
       await addBatchData('profiles', parsed.profiles);
+    }
+    if (parsed.sales_ae_relations && Array.isArray(parsed.sales_ae_relations)) {
+      await addBatchData('sales_ae_relations', parsed.sales_ae_relations);
     }
   } catch (error) {
     throw new Error('导入数据格式错误');
@@ -1597,6 +1701,7 @@ export const resetDB = async (): Promise<void> => {
   await clearTable('metaadguidance.recommendations');
   await clearTable('metaadguidance.metrics');
   await clearTable('profiles');
+  await clearTable('sales_ae_relations');
   
   saveDatabase();
 };

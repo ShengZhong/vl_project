@@ -1043,6 +1043,7 @@ interface MetricDetail {
 | v1.0 | 2025-01-15 | 新增 | 初始版本 | 产品团队 | 待评审 |
 | v1.1 | 2025-01-15 | 优化 | 完善数据模型，增加账户类型、状态、事件、推荐类型等枚举；增加账户ID、广告系列ID、广告ID、创意ID、事件ID、用户ID等字段；增加出价、预算、定向、优化、转化、归因等字段 | 产品团队 | 待评审 |
 | v1.2 | 2025-11-20 | 优化 | UI/UX 升级，增加仪表盘、动画特效及界面美化 | 产品团队 | 待评审 |
+| v1.4 | 2025-01-15 | 修复 | 修复数据加载问题，改为直连本地数据库(移除Mock依赖) | AI Assistant | 已发布 |
 | v1.3 | 2025-12-01 | 优化 | 融合VL广告指导建议功能，将"指导建议"功能从跳转页面改为Modal弹框展示，支持查看优化建议列表、分类统计、采纳/忽略操作 | AI Assistant | 已实现 |
 
 ## 11. 附录 (Appendix)
@@ -1053,9 +1054,11 @@ interface MetricDetail {
 - **前端代码**：
   - 列表页：`src/pages/metaadguidance/list/index.tsx`
   - 优化建议Modal：`src/pages/metaadguidance/components/RecommendationsModal.tsx`
-- **API 服务**：`src/services/adguidance.ts`（VL广告指导建议API）
-- **类型定义**：`src/types/adguidance.ts`
-- **Mock 数据**：`mock/adguidance.ts`
+- **API 服务**：
+  - `src/services/metaadguidance.ts`（Meta广告指导API，直连本地DB）
+  - `src/services/adguidance.ts`（VL广告指导建议API，直连本地DB）
+- **类型定义**：`src/types/adguidance.ts`, `src/types/metaadguidance.ts`
+- **数据库**：`src/db/index.ts` (本地 SQLite)
 - **API 文档**：Meta API 文档（内部）
 - **测试用例**：{链接}
 

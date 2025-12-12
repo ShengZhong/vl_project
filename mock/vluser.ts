@@ -1,6 +1,6 @@
 /**
  * VL 用户 Mock 数据
- * 功能点 ID: VL-USR-003
+ * 功能点 ID: VL-USR-003 & VL-SYS-001
  */
 
 import {
@@ -13,6 +13,9 @@ import {
   findOneData,
 } from '../src/db';
 import type { VLUser } from '../src/types/vluser';
+import { getCurrentUser } from './profile';
+import { UserRole } from '../src/types/profile';
+import { UserProfile } from '../src/types/profile';
 
 // 初始化数据（仅在表为空时）
 const initialData: VLUser[] = [
@@ -251,11 +254,49 @@ export default {
       
       // 从数据库获取数据
       let allData = await getAllData<VLUser>('vlusers');
-      console.log(`[VL用户列表] 从数据库获取到 ${allData.length} 条用户数据`);
+      
+      // 获取当前用户，进行权限过滤
+      const currentUser = await getCurrentUser();
+      console.log(`[VL用户列表] 当前用户: ${currentUser.name} (${currentUser.role})`);
+
+      if (currentUser.role === UserRole.Sales) {
+        // 销售只能看自己负责的客户
+        allData = allData.filter(item => 
+          item.signSales === currentUser.name || 
+          item.responsibleSales === currentUser.name
+        );
+      } else if (currentUser.role === UserRole.AE) {
+        // AE 能看自己负责的客户 + 关联销售负责的客户
+        
+        // 1. 获取关联的 Sales IDs
+        const relations = await getAllData<{salesId: string, aeId: string}>('sales_ae_relations');
+        const mySalesIds = relations
+          .filter(r => r.aeId === currentUser.userId)
+          .map(r => r.salesId);
+          
+        // 2. 获取 Sales Names
+        const profiles = await getAllData<UserProfile>('profiles');
+        const mySalesNames = profiles
+          .filter(p => mySalesIds.includes(p.userId))
+          .map(p => p.name);
+          
+        console.log(`[VL用户列表] AE关联的销售: ${mySalesNames.join(', ')}`);
+
+        // 3. 过滤
+        allData = allData.filter(item => {
+          // 直接负责 (模糊匹配，因为 AE 名字可能包含邮箱等)
+          const isDirectlyResponsible = item.responsibleAE && item.responsibleAE.includes(currentUser.name);
+          // 关联销售负责
+          const isSalesResponsible = mySalesNames.some(salesName => 
+            item.signSales === salesName || item.responsibleSales === salesName
+          );
+          
+          return isDirectlyResponsible || isSalesResponsible;
+        });
+      }
       
       // 如果没有数据，返回空列表
       if (!allData || allData.length === 0) {
-        console.warn('[VL用户列表] 数据库中没有用户数据');
         res.json({
           code: 200,
           message: '暂无数据',

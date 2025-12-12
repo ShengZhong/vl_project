@@ -27,10 +27,10 @@ import {
   EditOutlined,
   FormOutlined,
   SafetyOutlined,
-  BarChartOutlined,
-  AreaChartOutlined,
-  SettingOutlined,
-  ReadOutlined,
+  // BarChartOutlined, // Removed
+  // AreaChartOutlined, // Removed
+  // SettingOutlined, // Removed
+  // ReadOutlined, // Removed
   ApiOutlined,
   HddOutlined,
   EyeOutlined,
@@ -75,6 +75,7 @@ const BasicLayout: React.FC = ({ children }) => {
     '/adguidance/overview': ['首页', 'VL广告指导建议', '概览'],
     '/adguidance/recommendations': ['首页', 'VL广告指导建议', '优化建议'],
     '/adguidance/accounts': ['首页', 'VL广告指导建议', '账户管理'],
+    '/permission/sales-ae': ['首页', '权限管理', 'Sales-AE 关系配置'],
   };
 
   // 获取当前路径的面包屑
@@ -285,66 +286,6 @@ const BasicLayout: React.FC = ({ children }) => {
         },
       ],
     },
-    // 数据分析
-    {
-      key: 'data-analysis',
-      icon: <BarChartOutlined />,
-      label: '数据分析',
-      children: [
-        {
-          key: '/analysis/pending',
-          label: <Link to="/analysis/pending">待补充功能</Link>,
-        },
-      ],
-    },
-    // 数据看板
-    {
-      key: 'data-dashboard',
-      icon: <LineChartOutlined />,
-      label: '数据看板',
-      children: [
-        {
-          key: '/datadashboard/pending',
-          label: <Link to="/datadashboard/pending">待补充功能</Link>,
-        },
-      ],
-    },
-    // 行业看板
-    {
-      key: 'industry-dashboard',
-      icon: <AreaChartOutlined />,
-      label: '行业看板',
-      children: [
-        {
-          key: '/industry/pending',
-          label: <Link to="/industry/pending">待补充功能</Link>,
-        },
-      ],
-    },
-    // 品牌客户设置
-    {
-      key: 'brand-settings',
-      icon: <SettingOutlined />,
-      label: '品牌客户设置',
-      children: [
-        {
-          key: '/brand/pending',
-          label: <Link to="/brand/pending">待补充功能</Link>,
-        },
-      ],
-    },
-    // 品牌知识中心
-    {
-      key: 'brand-knowledge',
-      icon: <ReadOutlined />,
-      label: '品牌知识中心',
-      children: [
-        {
-          key: '/knowledge/pending',
-          label: <Link to="/knowledge/pending">待补充功能</Link>,
-        },
-      ],
-    },
     // 工具类
     {
       key: 'tools',
@@ -395,6 +336,10 @@ const BasicLayout: React.FC = ({ children }) => {
       icon: <HddOutlined />,
       label: '权限管理',
       children: [
+        {
+          key: '/permission/sales-ae',
+          label: <Link to="/permission/sales-ae">Sales-AE 关系配置</Link>,
+        },
         {
           key: '/permission/pending',
           label: <Link to="/permission/pending">待补充功能</Link>,

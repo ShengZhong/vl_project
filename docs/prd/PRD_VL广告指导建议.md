@@ -1168,6 +1168,7 @@ opportunityScore = 基础分(60)
 
 | 版本号 | 日期 | 变更类型 | 变更内容 | 变更人 | 评审状态 |
 |-------|------|---------|---------|--------|---------|
+| v1.1  | 2025-01-15 | 修复 | 修复数据加载问题，改为直连本地数据库(移除Mock依赖) | AI Assistant | 已发布 |
 | v1.0  | 2025-12-01 | 新增 | 初始版本,定义核心功能(概览、优化建议、账户管理)| AI Assistant | 草稿 |
 
 ---
@@ -1180,7 +1181,6 @@ opportunityScore = 基础分(60)
   - 概览页:`src/pages/adguidance/overview/index.tsx`
   - 优化建议页:`src/pages/adguidance/recommendations/index.tsx`
   - 账户管理页:`src/pages/adguidance/accounts/index.tsx`
-- **Mock数据**:`mock/adguidance.ts`
 - **数据库配置**:`src/db/index.ts`
 - **TypeScript类型定义**:`src/types/adguidance.ts`
 - **API服务**:`src/services/adguidance.ts`

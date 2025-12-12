@@ -8,6 +8,8 @@ export enum UserRole {
   Admin = 'admin',          // 管理员
   Operator = 'operator',    // 运营人员
   User = 'user',            // 普通用户
+  Sales = 'sales',          // 销售人员
+  AE = 'ae',                // 优化师(Account Executive)
 }
 
 // 用户角色名称映射
@@ -15,6 +17,8 @@ export const UserRoleNameMap: Record<UserRole, string> = {
   [UserRole.Admin]: '管理员',
   [UserRole.Operator]: '运营人员',
   [UserRole.User]: '普通用户',
+  [UserRole.Sales]: '销售人员',
+  [UserRole.AE]: '优化师',
 };
 
 // 用户个人信息模型

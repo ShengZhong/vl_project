@@ -120,9 +120,10 @@ project_root/
 │   ├── user-manual/                       # 用户手册（⚠️ 暂时禁用）
 │   │   ├── README.md                      # 手册索引
 │   │   └── user_manual_{功能名称}.md       # 具体手册
-│   └── summary/                           # 项目总结
+│   └── summary/                           # 项目总结与 Agent 执行报告
 │       ├── README.md                      # 总结索引
-│       └── {功能名称}_{功能点ID}_summary.md # 项目总结
+│       ├── {功能名称}_{功能点ID}_summary.md # 项目总结
+│       └── {TYPE}_{DESCRIPTION}.md          # Agent 执行报告/修复总结
 │
 ├── src/                                   # 💻 前端原型代码
 │   ├── pages/{模块名}/                     # 页面组件
@@ -151,7 +152,7 @@ project_root/
 |------|------|------|
 | `docs/prd/` | 存放 PRD 文档 | ✅ 使用中 |
 | `docs/user-manual/` | 存放用户手册 | ⚠️ 暂时禁用 |
-| `docs/summary/` | 存放项目总结 | ✅ 使用中 |
+| `docs/summary/` | 存放项目总结、Agent 执行报告 | ✅ 使用中 |
 | `src/pages/` | 页面组件代码 | ✅ 使用中 |
 | `src/db/` | 数据库工具 | ✅ 使用中 |
 | `mock/` | Mock 数据文件 | ✅ 使用中 |
@@ -344,6 +345,7 @@ https://github.com/ShengZhong/vl_project.git
 | ❌ 无意义提交 | 禁止提交"update files"、"test"等无意义 Git 信息 |
 | ❌ 版本不一致 | 禁止 PRD 和代码之间的版本不一致 |
 | ❌ 缺少功能点 ID | 禁止任何交付物缺少功能点 ID |
+| ❌ 根目录文档 | 禁止在根目录存放执行报告等 MD 文件，应归档至 `docs/summary/` |
 
 ### 9.2 代码规范禁止
 
